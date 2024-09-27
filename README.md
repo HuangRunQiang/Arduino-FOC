@@ -1,12 +1,12 @@
-# SimpleFOClibrary - **Simple** Field Oriented Control (FOC) **library** <br> 
-### A Cross-Platform FOC implementation for BLDC and Stepper motors<br> based on the Arduino IDE and PlatformIO 
+# SimpleFOClibrary - **简单**的场定向控制（FOC）**库** <br>
+### 基于 Arduino IDE 和 PlatformIO 的跨平台 FOC 实现，用于无刷直流电机和步进电机<br>
 
 [![AVR build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/arduino.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/arduino.yml)
 [![STM32 build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/stm32.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/stm32.yml)
 [![ESP32 build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/esp32.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/esp32.yml)
 [![RP2040 build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/rpi.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/rpi.yml)
 [![SAMD build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/samd.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/samd.yml)
-[![Teensy build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/teensy.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/teensy.yml) 
+[![Teensy build](https://github.com/simplefoc/Arduino-FOC/actions/workflows/teensy.yml/badge.svg)](https://github.com/simplefoc/Arduino-FOC/actions/workflows/teensy.yml)
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/simplefoc/arduino-foc)
 ![GitHub Release Date](https://img.shields.io/github/release-date/simplefoc/arduino-foc?color=blue)
@@ -18,35 +18,33 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![status](https://joss.theoj.org/papers/4382445f249e064e9f0a7f6c1bb06b1d/status.svg)](https://joss.theoj.org/papers/4382445f249e064e9f0a7f6c1bb06b1d)
 
+我们生活在一个非常激动人心的时代 😃！无刷直流电机（BLDC）越来越多地进入爱好者社区，许多出色的项目已经利用了它们远超于传统直流电机的动态性能和功率能力。BLDC 电机相较于普通直流电机有许多优点，但也有一个大缺点，那就是控制的复杂性。尽管设计和制造 PCB 以及创建我们自己的驱动 BLDC 电机的硬件解决方案变得相对简单，但合适的低成本解决方案仍然未能出现。这部分原因在于编写 BLDC 驱动算法的复杂性，场定向控制（FOC）就是其中一种最有效的算法之一。
+在线上可以找到的解决方案几乎都是针对特定硬件配置和微控制器架构的。此外，目前大多数努力仍然集中在 BLDC 电机的高功率应用上，适合低成本和低功率的 FOC 支持板在今天非常难以找到，甚至可能根本不存在。<br>
+因此，这是一个尝试：
+- 🎯 解密 FOC 算法，并创建一个强大但简单的 Arduino 库：[Arduino *SimpleFOClibrary*](https://docs.simplefoc.com/arduino_simplefoc_library_showcase)
+  - <i>支持尽可能多的 <b>电机 + 传感器 + 驱动器 + 微控制器</b> 组合</i>
+- 🎯 开发模块化和易于使用的 FOC 支持 BLDC 驱动板
+   - 有关官方驱动板，请参见 [<span class="simple">Simple<span class="foc">FOC</span>Boards</span>](https://docs.simplefoc.com/boards)
+   - 社区成员开发的更多板，请参见 [<span class="simple">Simple<span class="foc">FOC</span>Community</span>](https://community.simplefoc.com/)
 
-We live in very exciting times 😃! BLDC motors are entering the hobby community more and more and many great projects have already emerged leveraging their far superior dynamics and power capabilities. BLDC motors have numerous advantages over regular DC motors but they have one big disadvantage, the complexity of control. Even though it has become relatively easy to design and manufacture PCBs and create our own hardware solutions for driving BLDC motors the proper low-cost solutions are yet to come. One of the reasons for this is the apparent complexity of writing the BLDC driving algorithms, Field oriented control (FOC) being an example of one of the most efficient ones.
-The solutions that can be found on-line are almost exclusively very specific for certain hardware configuration and the microcontroller architecture used.
-Additionally, most of the efforts at this moment are still channeled towards the high-power applications of the BLDC motors and proper low-cost and low-power FOC supporting boards are very hard to find today and even may not exist. <br>
-Therefore this is an attempt to: 
-- 🎯 Demystify FOC algorithm and make a robust but simple Arduino library: [Arduino *SimpleFOClibrary*](https://docs.simplefoc.com/arduino_simplefoc_library_showcase)
-  - <i>Support as many <b>motor + sensor + driver + mcu</b> combinations out there</i>
-- 🎯 Develop modular and easy to use FOC supporting BLDC driver boards
-   - For official driver boards see [<span class="simple">Simple<span class="foc">FOC</span>Boards</span>](https://docs.simplefoc.com/boards)
-   - Many many more boards developed by the community members, see [<span class="simple">Simple<span class="foc">FOC</span>Community</span>](https://community.simplefoc.com/)
-
-> NEXT RELEASE 📢 : <span class="simple">Simple<span class="foc">FOC</span>library</span> v2.3.4
-> - ESP32 MCUs extended support [#414](https://github.com/simplefoc/Arduino-FOC/pull/414)
->   - Transition to the arduino-esp32 version v3.x (ESP-IDF v5.x) [#387](https://github.com/espressif/arduino-esp32/releases)
->   - New support for MCPWM driver
->   - New support for LEDC drivers - center-aligned PWM and 6PWM available 
->   - Rewritten and simplified the fast ADC driver code (`adcRead`) - for low-side and inline current sensing.
-> - Stepper motors current sensing support [#421](https://github.com/simplefoc/Arduino-FOC/pull/421)
->   - Support for current sensing (low-side and inline) - [see in docs](https://docs.simplefoc.com/current_sense)
->   - Support for true FOC control - `foc_current` torque control - [see in docs](https://docs.simplefoc.com/motion_control)
-> - New current sense alignment procedure  [#422](https://github.com/simplefoc/Arduino-FOC/pull/422) - [see in docs](https://docs.simplefoc.com/current_sense_align)
->   - Support for steppers
->   - Much more robust and reliable
->   - More verbose and informative 
-> - Support for HallSensors without interrupts [#424](https://docs.simplefoc.com/https://github.com/simplefoc/Arduino-FOC/pull/424) - [see in docs](hall_sensors) 
-> - Docs
->   - A short guide to debugging of common issues
->   - A short guide to the units in the library - [see in docs](https://docs.simplefoc.com/library_units)
-> - See the complete list of bugfixes and new features of v2.3.4 [fixes and PRs](https://github.com/simplefoc/Arduino-FOC/milestone/11) 
+> 下一个版本 📢 : <span class="simple">Simple<span class="foc">FOC</span>library</span> v2.3.4
+> - 扩展 ESP32 微控制器的支持 [#414](https://github.com/simplefoc/Arduino-FOC/pull/414)
+>   - 过渡到 arduino-esp32 版本 v3.x (ESP-IDF v5.x) [#387](https://github.com/espressif/arduino-esp32/releases)
+>   - 新增对 MCPWM 驱动的支持
+>   - 新增对 LEDC 驱动的支持 - 中心对齐 PWM 和 6PWM 可用
+>   - 重写并简化快速 ADC 驱动代码 (`adcRead`) - 用于低侧和内联电流检测。
+> - 步进电机电流检测支持 [#421](https://github.com/simplefoc/Arduino-FOC/pull/421)
+>   - 支持电流检测（低侧和内联） - [见文档](https://docs.simplefoc.com/current_sense)
+>   - 支持真实的 FOC 控制 - `foc_current` 扭矩控制 - [见文档](https://docs.simplefoc.com/motion_control)
+> - 新的电流检测对齐程序 [#422](https://github.com/simplefoc/Arduino-FOC/pull/422) - [见文档](https://docs.simplefoc.com/current_sense_align)
+>   - 支持步进电机
+>   - 更加稳健和可靠
+>   - 更加详细和信息丰富
+> - 支持无中断的霍尔传感器 [#424](https://docs.simplefoc.com/https://github.com/simplefoc/Arduino-FOC/pull/424) - [见文档](hall_sensors)
+> - 文档
+>   - 常见问题的调试简要指南
+>   - 库中单位的简要指南 - [见文档](https://docs.simplefoc.com/library_units)
+> - 查看 v2.3.4 的完整错误修复和新功能列表 [修复和 PRs](https://github.com/simplefoc/Arduino-FOC/milestone/11)
 
 
 ## Arduino *SimpleFOClibrary* v2.3.4
@@ -57,87 +55,85 @@ Therefore this is an attempt to:
 </a>
 </p>
 
-This video demonstrates the *Simple**FOC**library* basic usage, electronic connections and shows its capabilities.
+该视频演示了 *Simple**FOC**library* 的基本用法、电子连接，并展示了其功能。
 
-### Features
-- **Easy install**: 
-   - Arduino IDE: Arduino Library Manager integration
+### 特性
+- **简单安装**：
+   - Arduino IDE：集成 Arduino 库管理器
    - PlatformIO
-- **Open-Source**: Full code and documentation available on github
-- **Goal**: 
-   - Support as many [sensor](https://docs.simplefoc.com/position_sensors) + [motor](https://docs.simplefoc.com/motors) + [driver](https://docs.simplefoc.com/drivers) + [current sense](https://docs.simplefoc.com/current_sense)   combination as possible.
-   - Provide the up-to-date and in-depth documentation with API references and the examples
-- **Easy to setup and configure**: 
-   - Easy hardware configuration 
-   - Each hardware component is a C++ object (easy to understand) 
-   - Easy [tuning the control loops](https://docs.simplefoc.com/motion_control)
-   - [*Simple**FOC**Studio*](https://docs.simplefoc.com/studio) configuration GUI tool
-   - Built-in communication and monitoring
-- **Cross-platform**:
-   - Seamless code transfer from one microcontroller family to another 
-   - Supports multiple [MCU architectures](https://docs.simplefoc.com/microcontrollers):
-      - Arduino: UNO R4, UNO, MEGA, DUE, Leonardo, Nano, Nano33 ....
+- **开源**：完整代码和文档可在 GitHub 上获取
+- **目标**：
+   - 支持尽可能多的 [传感器](https://docs.simplefoc.com/position_sensors) + [电机](https://docs.simplefoc.com/motors) + [驱动器](https://docs.simplefoc.com/drivers) + [电流检测](https://docs.simplefoc.com/current_sense) 组合。
+   - 提供最新和深入的文档，包括 API 参考和示例
+- **易于设置和配置**：
+   - 简单的硬件配置
+   - 每个硬件组件都是一个 C++ 对象（易于理解）
+   - 易于 [调节控制回路](https://docs.simplefoc.com/motion_control)
+   - [*Simple**FOC**Studio*](https://docs.simplefoc.com/studio) 配置 GUI 工具
+   - 内置通信和监控
+- **跨平台**：
+   - 从一个微控制器系列到另一个系列的无缝代码迁移
+   - 支持多种 [MCU 架构](https://docs.simplefoc.com/microcontrollers)：
+      - Arduino: UNO R4、UNO、MEGA、DUE、Leonardo、Nano、Nano33 等
       - STM32
       - ESP32
       - Teensy
-      - many more ...
+      - 还有更多 ...
 
 <p align=""> <img src="https://docs.simplefoc.com/extras/Images/uno_l6234.jpg"  height="170px">  <img src="https://docs.simplefoc.com/extras/Images/hmbgc_v22.jpg" height="170px">  <img src="https://docs.simplefoc.com/extras/Images/foc_shield_v13.jpg"  height="170px"></p>
 
-
-## Documentation
-Full API code documentation as well as example projects and step by step guides can be found on our [docs website](https://docs.simplefoc.com/).
+## 文档
+完整的 API 代码文档以及示例项目和逐步指南可以在我们的 [文档网站](https://docs.simplefoc.com/) 找到。
 
 ![image](https://user-images.githubusercontent.com/36178713/168475410-105e4e3d-082a-4015-98ff-d380c7992dfd.png)
 
+## 入门
+根据您是否希望将此库用作即插即用的 Arduino 库，或者希望深入了解算法并进行更改，有两种安装此代码的方法。
 
-## Getting Started
-Depending on if you want to use this library as the plug and play Arduino library or you want to get insight in the algorithm and make changes there are two ways to install this code.
+- 完整库安装 [文档](https://docs.simplefoc.com/library_download)
+- PlatformIO [文档](https://docs.simplefoc.com/library_platformio)
 
-- Full library installation [Docs](https://docs.simplefoc.com/library_download)
-- PlatformIO [Docs](https://docs.simplefoc.com/library_platformio)
+### 将 Arduino *SimpleFOClibrary* 安装到 Arduino IDE
+#### Arduino 库管理器
+获取库最简单的方法是直接使用 Arduino IDE 及其集成的库管理器。
+- 打开 Arduino IDE，点击 `工具 > 管理库...` 启动 Arduino 库管理器。
+- 搜索 `Simple FOC` 库并安装最新版本。
+- 重新打开 Arduino IDE，您应该在 `文件 > 示例 > Simple FOC` 中看到库示例。
 
-### Arduino *SimpleFOClibrary* installation to Arduino IDE
-#### Arduino Library Manager 
-The simplest way to get hold of the library is directly by using Arduino IDE and its integrated Library Manager. 
-- Open Arduino IDE and start Arduino Library Manager by clicking: `Tools > Manage Libraries...`.
-- Search for `Simple FOC` library and install the latest version.
-- Reopen Arduino IDE and you should have the library examples in `File > Examples > Simple FOC`.
+#### 使用 GitHub 网站
+- 前往 [GitHub 仓库](https://github.com/simplefoc/Arduino-FOC)
+- 首先点击 `Clone or Download > Download ZIP`。
+- 解压缩并将其放入 `Arduino Libraries` 文件夹。Windows: `文档 > Arduino > libraries`。
+- 重新打开 Arduino IDE，您应该在 `文件 > 示例 > Simple FOC` 中看到库示例。
 
-#### Using Github website 
-- Go to the [github repository](https://github.com/simplefoc/Arduino-FOC)
-- Click first on `Clone or Download > Download ZIP`. 
-- Unzip it and place it in `Arduino Libraries` folder. Windows: `Documents > Arduino > libraries`.  
-- Reopen Arduino IDE and you should have the library examples in `File > Examples > Simple FOC`.
-
-#### Using terminal
-- Open terminal and run
+#### 使用终端
+- 打开终端并运行
 ```sh  
 cd #Arduino libraries folder
 git clone https://github.com/simplefoc/Arduino-FOC.git
 ```
-- Reopen Arduino IDE and you should have the library examples in `File > Examples > Simple FOC`.
+- 重新打开 Arduino IDE，您应该在 `文件 > 示例 > Simple FOC` 中看到库示例。
 
-## Community and contributing
+## 社区与贡献
 
-For all the questions regarding the potential implementation, applications, supported hardware and similar please visit our [community forum](https://community.simplefoc.com) or our [discord server](https://discord.gg/kWBwuzY32n).
+对于有关潜在实现、应用、支持硬件等问题，请访问我们的 [社区论坛](https://community.simplefoc.com) 或我们的 [Discord 服务器](https://discord.gg/kWBwuzY32n)。
 
-It is always helpful to hear the stories/problems/suggestions of people implementing the code and you might find a lot of answered questions there already! 
+听取实施代码的人的故事/问题/建议总是很有帮助，您可能会发现那里已经有很多问题得到了回答！
 
-### Github Issues & Pull requests
+### GitHub 问题与拉取请求
 
-Please do not hesitate to leave an issue if you have problems/advices/suggestions regarding the code!
+如果您在代码方面遇到问题或有建议，请随时留下问题！
 
-Pull requests are welcome, but let's first discuss them in [community forum](https://community.simplefoc.com)!
+欢迎提交拉取请求，但请先在 [社区论坛](https://community.simplefoc.com) 中讨论！
 
-If you'd like to contribute to this project but you are not very familiar with github, don't worry, let us know either by posting at the community forum , by posting a github issue or at our discord server.
+如果您希望为此项目做出贡献，但对 GitHub 不太熟悉，请不要担心，通过在社区论坛发帖、提交 GitHub 问题或在我们的 Discord 服务器上告知我们即可。
 
-If you are familiar, we accept pull requests to the dev branch!
+如果您熟悉，我们接受对开发分支的拉取请求！
 
-## Arduino code example
-This is a simple Arduino code example implementing the velocity control program of a BLDC motor with encoder. 
+## Arduino 代码示例
+这是一个简单的 Arduino 代码示例，实现了带编码器的 BLDC 电机的速度控制程序。
 
-NOTE: This program uses all the default control parameters.
+注意：此程序使用所有默认控制参数。
 
 ```cpp
 #include <SimpleFOC.h>
@@ -152,44 +148,43 @@ Encoder encoder = Encoder(2, 3, 2048);
 void doA(){encoder.handleA();}
 void doB(){encoder.handleB();}
 
-
 void setup() {  
-  // initialize encoder hardware
+  // 初始化编码器硬件
   encoder.init();
-  // hardware interrupt enable
+  // 启用硬件中断
   encoder.enableInterrupts(doA, doB);
-  // link the motor to the sensor
+  // 将电机与传感器链接
   motor.linkSensor(&encoder);
   
-  // power supply voltage [V]
+  // 电源电压 [V]
   driver.voltage_power_supply = 12;
-  // initialise driver hardware
+  // 初始化驱动器硬件
   driver.init();
-  // link driver
+  // 链接驱动器
   motor.linkDriver(&driver);
 
-  // set control loop type to be used
+  // 设置使用的控制回路类型
   motor.controller = MotionControlType::velocity;
-  // initialize motor
+  // 初始化电机
   motor.init();
   
-  // align encoder and start FOC
+  // 对齐编码器并启动 FOC
   motor.initFOC();
 }
 
 void loop() {
-  // FOC algorithm function
+  // FOC 算法函数
   motor.loopFOC();
 
-  // velocity control loop function
-  // setting the target velocity or 2rad/s
+  // 速度控制回路函数
+  // 设置目标速度为 2rad/s
   motor.move(2);
 }
 ```
-You can find more details in the [SimpleFOC documentation](https://docs.simplefoc.com/).
+您可以在 [SimpleFOC 文档](https://docs.simplefoc.com/) 中找到更多详细信息。
 
-## Example projects
-Here are some of the *Simple**FOC**library* and *Simple**FOC**Shield* application examples. 
+## 示例项目
+以下是一些 *Simple**FOC**library* 和 *Simple**FOC**Shield* 应用示例。 
 <p align="center">
 <a href="https://youtu.be/Ih-izQyXJCI">
 <img src="https://docs.simplefoc.com/extras/Images/youtube_pendulum.png"  height="200px" >
@@ -205,18 +200,17 @@ Here are some of the *Simple**FOC**library* and *Simple**FOC**Shield* applicatio
 </a>
 </p>
 
+## 引用 *SimpleFOC*
 
-## Citing the *SimpleFOC* 
-
-We are very happy that *Simple**FOC**library* has been used as a component of several research project and has made its way to several scientific papers.  We are hoping that this trend is going to continue as the project matures and becomes more robust! 
-A short resume paper about *Simple**FOC*** has been published in the Journal of Open Source Software: 
+我们很高兴 *Simple**FOC**library* 已被用作多个研究项目的组成部分，并已出现在多篇科学论文中。我们希望这一趋势在项目成熟和变得更加稳健的过程中能够继续下去！
+关于 *Simple**FOC*** 的简短论文已在《开放源代码软件杂志》上发表：
 <p>
-  <b><i>SimpleFOC</i></b>: A Field Oriented Control (FOC) Library for Controlling Brushless Direct Current (BLDC) and Stepper Motors.<br>
+  <b><i>SimpleFOC</i></b>: 一种用于控制无刷直流电机（BLDC）和步进电机的场定向控制（FOC）库。<br>
   A. Skuric, HS. Bank, R. Unger, O. Williams, D. González-Reyes<br>
-Journal of Open Source Software, 7(74), 4232, https://doi.org/10.21105/joss.04232
+《开放源代码软件杂志》，7(74)，4232，https://doi.org/10.21105/joss.04232
 </p>
 
-If you are interested in citing  *Simple**FOC**library* or some other component of *Simple**FOC**project* in your research, we suggest you to cite our paper:
+如果您有兴趣在您的研究中引用 *Simple**FOC**library* 或 *Simple**FOC**project* 的其他组件，我们建议您引用我们的论文：
 
 ```bib
 @article{simplefoc2022,
@@ -231,5 +225,6 @@ If you are interested in citing  *Simple**FOC**library* or some other component 
   title = {SimpleFOC: A Field Oriented Control (FOC) Library for Controlling Brushless Direct Current (BLDC) and Stepper Motors},
   journal = {Journal of Open Source Software}
 }
+```
 
 ```
