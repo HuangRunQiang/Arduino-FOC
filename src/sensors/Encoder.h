@@ -6,86 +6,84 @@
 #include "../common/time_utils.h"
 #include "../common/base_classes/Sensor.h"
 
-
 /**
- *  Quadrature mode configuration structure
+ *  正交模式配置结构
  */
 enum Quadrature : uint8_t {
-  ON    = 0x00, //!<  Enable quadrature mode CPR = 4xPPR
-  OFF   = 0x01  //!<  Disable quadrature mode / CPR = PPR
+  ON    = 0x00, //!< 启用正交模式 CPR = 4xPPR
+  OFF   = 0x01  //!< 禁用正交模式 / CPR = PPR
 };
 
 class Encoder: public Sensor{
  public:
     /**
-    Encoder class constructor
-    @param encA  encoder B pin
-    @param encB  encoder B pin
-    @param ppr  impulses per rotation  (cpr=ppr*4)
-    @param index index pin number (optional input)
+    编码器类构造函数
+    @param encA  编码器 A 引脚
+    @param encB  编码器 B 引脚
+    @param ppr   每转脉冲数（cpr=ppr*4）
+    @param index 索引引脚编号（可选输入）
     */
     Encoder(int encA, int encB , float ppr, int index = 0);
 
-    /** encoder initialise pins */
+    /** 初始化编码器引脚 */
     void init() override;
+    
     /**
-     *  function enabling hardware interrupts for the encoder channels with provided callback functions
-     *  if callback is not provided then the interrupt is not enabled
+     *  启用编码器通道的硬件中断，并提供回调函数
+     *  如果未提供回调，则不启用中断
      * 
-     * @param doA pointer to the A channel interrupt handler function
-     * @param doB pointer to the B channel interrupt handler function
-     * @param doIndex pointer to the Index channel interrupt handler function
+     * @param doA 指向 A 通道中断处理函数的指针
+     * @param doB 指向 B 通道中断处理函数的指针
+     * @param doIndex 指向索引通道中断处理函数的指针
      * 
      */
     void enableInterrupts(void (*doA)() = nullptr, void(*doB)() = nullptr, void(*doIndex)() = nullptr);
     
-    //  Encoder interrupt callback functions
-    /** A channel callback function */
+    // 编码器中断回调函数
+    /** A 通道回调函数 */
     void handleA();
-    /** B channel callback function */
+    /** B 通道回调函数 */
     void handleB();
-    /** Index channel callback function */
+    /** 索引通道回调函数 */
     void handleIndex();
     
-    
-    // pins A and B
-    int pinA; //!< encoder hardware pin A
-    int pinB; //!< encoder hardware pin B
-    int index_pin; //!< index pin
+    // A 和 B 引脚
+    int pinA; //!< 编码器硬件引脚 A
+    int pinB; //!< 编码器硬件引脚 B
+    int index_pin; //!< 索引引脚
 
-    // Encoder configuration
-    Pullup pullup; //!< Configuration parameter internal or external pullups
-    Quadrature quadrature;//!< Configuration parameter enable or disable quadrature mode
-    float cpr;//!< encoder cpr number
+    // 编码器配置
+    Pullup pullup; //!< 配置参数：内部或外部上拉
+    Quadrature quadrature; //!< 配置参数：启用或禁用正交模式
+    float cpr; //!< 编码器每转计数
 
-    // Abstract functions of the Sensor class implementation
-    /** get current angle (rad) */
+    // Sensor 类的抽象函数实现
+    /** 获取当前角度（弧度） */
     float getSensorAngle() override;
-    /**  get current angular velocity (rad/s) */
+    /** 获取当前角速度（弧度/秒） */
     float getVelocity() override;
     virtual void update() override;
 
     /**
-     * returns 0 if it does need search for absolute zero
-     * 0 - encoder without index 
-     * 1 - ecoder with index
+     * 如果需要搜索绝对零点则返回 1
+     * 0 - 没有索引的编码器 
+     * 1 - 有索引的编码器
      */
     int needsSearch() override;
 
   private:
-    int hasIndex(); //!< function returning 1 if encoder has index pin and 0 if not.
+    int hasIndex(); //!< 函数返回 1 如果编码器有索引引脚，返回 0 如果没有。
 
-    volatile long pulse_counter;//!< current pulse counter
-    volatile long pulse_timestamp;//!< last impulse timestamp in us
-    volatile int A_active; //!< current active states of A channel
-    volatile int B_active; //!< current active states of B channel
-    volatile int I_active; //!< current active states of Index channel
-    volatile bool index_found = false; //!< flag stating that the index has been found
+    volatile long pulse_counter; //!< 当前脉冲计数器
+    volatile long pulse_timestamp; //!< 最近脉冲时间戳（微秒）
+    volatile int A_active; //!< 当前 A 通道的活动状态
+    volatile int B_active; //!< 当前 B 通道的活动状态
+    volatile int I_active; //!< 当前索引通道的活动状态
+    volatile bool index_found = false; //!< 标志，表示索引已被找到
 
-    // velocity calculation variables
+    // 速度计算变量
     float prev_Th, pulse_per_second;
     volatile long prev_pulse_counter, prev_timestamp_us;
 };
-
 
 #endif

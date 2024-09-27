@@ -1,43 +1,45 @@
 /**
- *  Encoder example code 
+ *  编码器示例代码 
  * 
- * This is a code intended to test the encoder connections and to demonstrate the encoder setup.
+ *  这段代码用于测试编码器连接并演示编码器的设置。
  * 
  */
 
 #include <SimpleFOC.h>
 
+Encoder encoder = Encoder(2, 3, 8192); // 创建编码器对象，使用引脚 2 和 3，8192 为每转脉冲数
 
-Encoder encoder = Encoder(2, 3, 8192);
-// interrupt routine intialisation
-void doA(){encoder.handleA();}
-void doB(){encoder.handleB();}
+// 中断例程初始化
+void doA() { encoder.handleA(); }
+void doB() { encoder.handleB(); }
 
 void setup() {
-  // monitoring port
+  // 监控端口
   Serial.begin(115200);
 
-  // enable/disable quadrature mode
+  // 启用/禁用正交模式
   encoder.quadrature = Quadrature::ON;
 
-  // check if you need internal pullups
+  // 检查是否需要内部上拉
   encoder.pullup = Pullup::USE_EXTERN;
   
-  // initialise encoder hardware
+  // 初始化编码器硬件
   encoder.init();
-  // hardware interrupt enable
+  
+  // 启用硬件中断
   encoder.enableInterrupts(doA, doB);
 
-  Serial.println("Encoder ready");
+  Serial.println("编码器准备就绪");
   _delay(1000);
 }
 
 void loop() {
-  // iterative function updating the sensor internal variables
-  // it is usually called in motor.loopFOC()
-  // not doing much for the encoder though
+  // 循环函数更新传感器内部变量
+  // 通常在 motor.loopFOC() 中调用
+  // 对于编码器而言，这里并没有做太多事情
   encoder.update();
-  // display the angle and the angular velocity to the terminal
+  
+  // 将角度和角速度显示到终端
   Serial.print(encoder.getAngle());
   Serial.print("\t");
   Serial.println(encoder.getVelocity());
