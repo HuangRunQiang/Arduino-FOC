@@ -2,82 +2,122 @@
 
 
 
-// Open loop motor control example
+/*!
+ * @file SimpleFOC.h
+ *
+ * @mainpage Simple Field Oriented Control BLDC motor control library
+ *
+ * @section intro_sec Introduction
+ *
+ * Proper low-cost and low-power FOC supporting boards are very hard to find these days and even may not exist.<br> Even harder to find is a stable and simple FOC algorithm code capable of running on Arduino devices. Therefore this is an attempt to:
+ * - Demystify FOC algorithm and make a robust but simple Arduino library: Arduino SimpleFOC library
+ * - Develop a modular BLDC driver board: Arduino SimpleFOC shield.
+ *
+ * @section features Features
+ *  - Arduino compatible: Arduino library code
+ *  - Easy to setup and configure:
+ *     - Easy hardware configuration
+ *     - Easy tuning the control loops
+ *  - Modular:
+ *     - Supports as many sensors , BLDC motors and driver boards as possible
+ *     - Supports as many application requirements as possible
+ *  - Plug & play: Arduino SimpleFOC shield
+ * 
+ * @section dependencies Supported Hardware
+ *  - Motors 
+ *    - BLDC motors
+ *    - Stepper motors
+ * - Drivers 
+ *    - BLDC drivers
+ *    - Gimbal drivers
+ *    - Stepper drivers
+ * - Position sensors 
+ *    - Encoders
+ *    - Magnetic sensors
+ *    - Hall sensors
+ *    - Open-loop control
+ * - Microcontrollers 
+ *    - Arduino
+ *    - STM32
+ *    - ESP32
+ *    - Teensy
+ * 
+ * @section example_code Example code
+ * @code
 #include <SimpleFOC.h>
 
-
-// BLDC motor & driver instance
-// BLDCMotor motor = BLDCMotor(pole pair number);
+//  BLDCMotor( pole_pairs )
 BLDCMotor motor = BLDCMotor(11);
-// BLDCDriver3PWM driver = BLDCDriver3PWM(pwmA, pwmB, pwmC, Enable(optional));
-BLDCDriver3PWM driver = BLDCDriver3PWM(9, 5, 6, 8);
+//  BLDCDriver( pin_pwmA, pin_pwmB, pin_pwmC, enable (optional) )
+BLDCDriver3PWM driver = BLDCDriver3PWM(9, 10, 11, 8);
+//  Encoder(pin_A, pin_B, CPR)
+Encoder encoder = Encoder(2, 3, 2048);
+// channel A and B callbacks
+void doA(){encoder.handleA();}
+void doB(){encoder.handleB();}
 
-// Stepper motor & driver instance
-//StepperMotor motor = StepperMotor(50);
-//StepperDriver4PWM driver = StepperDriver4PWM(9, 5, 10, 6,  8);
 
-
-//target variable
-float target_velocity = 0;
-
-// instantiate the commander
-Commander command = Commander(Serial);
-void doTarget(char* cmd) { command.scalar(&target_velocity, cmd); }
-void doLimit(char* cmd) { command.scalar(&motor.voltage_limit, cmd); }
-
-void setup() {
-
-  // use monitoring with serial 
-  Serial.begin(115200);
-  // enable more verbose output for debugging
-  // comment out if not needed
-  SimpleFOCDebug::enable(&Serial);
-
-  // driver config
+void setup() {  
+  // initialize encoder hardware
+  encoder.init();
+  // hardware interrupt enable
+  encoder.enableInterrupts(doA, doB);
+  // link the motor to the sensor
+  motor.linkSensor(&encoder);
+  
   // power supply voltage [V]
   driver.voltage_power_supply = 12;
-  // limit the maximal dc voltage the driver can set
-  // as a protection measure for the low-resistance motors
-  // this value is fixed on startup
-  driver.voltage_limit = 6;
-  if(!driver.init()){
-    Serial.println("Driver init failed!");
-    return;
-  }
-  // link the motor and the driver
+  // initialise driver hardware
+  driver.init();
+  // link driver
   motor.linkDriver(&driver);
 
-  // limiting motor movements
-  // limit the voltage to be set to the motor
-  // start very low for high resistance motors
-  // current = voltage / resistance, so try to be well under 1Amp
-  motor.voltage_limit = 3;   // [V]
- 
-  // open loop control config
-  motor.controller = MotionControlType::velocity_openloop;
-
-  // init motor hardware
-  if(!motor.init()){
-    Serial.println("Motor init failed!");
-    return;
-  }
-
-  // add target command T
-  command.add('T', doTarget, "target velocity");
-  command.add('L', doLimit, "voltage limit");
-
-  Serial.println("Motor ready!");
-  Serial.println("Set target velocity [rad/s]");
-  _delay(1000);
+  // set control loop type to be used
+  motor.controller = MotionControlType::velocity;
+  // initialize motor
+  motor.init();
+  
+  // align encoder and start FOC
+  motor.initFOC();
 }
 
 void loop() {
+  // FOC algorithm function
+  motor.loopFOC();
 
-  // open loop velocity movement
-  // using motor.voltage_limit and motor.velocity_limit
-  // to turn the motor "backwards", just set a negative target_velocity
-  motor.move(target_velocity);
-
-  // user communication
-  command.run();
+  // velocity control loop function
+  // setting the target velocity or 2rad/s
+  motor.move(2);
 }
+ * @endcode 
+ *
+ * @section license License
+ *
+ * MIT license, all text here must be included in any redistribution.
+ *
+ */
+
+#ifndef SIMPLEFOC_H
+#define SIMPLEFOC_H
+
+#include "BLDCMotor.h"
+#include "StepperMotor.h"
+#include "sensors/Encoder.h"
+#include "sensors/MagneticSensorSPI.h"
+#include "sensors/MagneticSensorI2C.h"
+#include "sensors/MagneticSensorAnalog.h"
+#include "sensors/MagneticSensorPWM.h"
+#include "sensors/HallSensor.h"
+#include "sensors/GenericSensor.h"
+#include "drivers/BLDCDriver3PWM.h"
+#include "drivers/BLDCDriver6PWM.h"
+#include "drivers/StepperDriver4PWM.h"
+#include "drivers/StepperDriver2PWM.h"
+#include "current_sense/InlineCurrentSense.h"
+#include "current_sense/LowsideCurrentSense.h"
+#include "current_sense/GenericCurrentSense.h"
+#include "communication/Commander.h"
+#include "communication/StepDirListener.h"
+#include "communication/SimpleFOCDebug.h"
+
+#endif

@@ -11,105 +11,104 @@
 #include "common/defaults.h"
 
 /**
- BLDC motor class
-*/
+ * BLDC电机类
+ */
 class BLDCMotor: public FOCMotor
 {
   public:
     /**
-     BLDCMotor class constructor
-     @param pp pole pairs number
-     @param R  motor phase resistance - [Ohm]
-     @param KV  motor KV rating (1/K_bemf) - rpm/V
-     @param L  motor phase inductance - [H]
+     * BLDCMotor类构造函数
+     * @param pp 极对数
+     * @param R 电机相位电阻 - [欧姆]
+     * @param KV 电机KV额定值 (1/K_bemf) - rpm/V
+     * @param L 电机相位电感 - [亨利]
      */ 
     BLDCMotor(int pp,  float R = NOT_SET, float KV = NOT_SET, float L = NOT_SET);
     
     /**
-     * Function linking a motor and a foc driver 
+     * 连接电机和FOC驱动器的函数 
      * 
-     * @param driver BLDCDriver class implementing all the hardware specific functions necessary PWM setting
+     * @param driver 实现所有硬件特定功能的BLDCDriver类，必要的PWM设置
      */
     virtual void linkDriver(BLDCDriver* driver);
 
     /** 
-      * BLDCDriver link:
-      * - 3PWM 
-      * - 6PWM 
-    */
+     * BLDCDriver链接:
+     * - 3PWM 
+     * - 6PWM 
+     */
     BLDCDriver* driver; 
     
-    /**  Motor hardware init function */
+    /** 电机硬件初始化函数 */
   	int init() override;
-    /** Motor disable function */
+    /** 禁用电机的函数 */
   	void disable() override;
-    /** Motor enable function */
+    /** 启用电机的函数 */
     void enable() override;
 
     /**
-     * Function initializing FOC algorithm
-     * and aligning sensor's and motors' zero position 
+     * 初始化FOC算法的函数
+     * 并对传感器和电机的零位置进行对齐 
      */  
     int initFOC() override;
     /**
-     * Function running FOC algorithm in real-time
-     * it calculates the gets motor angle and sets the appropriate voltages 
-     * to the phase pwm signals
-     * - the faster you can run it the better Arduino UNO ~1ms, Bluepill ~ 100us
+     * 实时运行FOC算法的函数
+     * 计算电机角度并设置适当的电压 
+     * 到相位PWM信号
+     * - 运行得越快越好，Arduino UNO ~1ms，Bluepill ~ 100us
      */ 
     void loopFOC() override;
 
     /**
-     * Function executing the control loops set by the controller parameter of the BLDCMotor.
+     * 执行由BLDCMotor控制器参数设置的控制循环的函数。
      * 
-     * @param target  Either voltage, angle or velocity based on the motor.controller
-     *                If it is not set the motor will use the target set in its variable motor.target
+     * @param target  基于电机.controller的电压、角度或速度
+     *                 如果未设置，电机将使用其变量motor.target中设置的目标
      * 
-     * This function doesn't need to be run upon each loop execution - depends of the use case
+     * 此函数不需要在每次循环执行时运行 - 取决于使用情况
      */
     void move(float target = NOT_SET) override;
     
-    float Ua, Ub, Uc;//!< Current phase voltages Ua,Ub and Uc set to motor
+    float Ua, Ub, Uc; //!< 当前相位电压Ua, Ub和Uc设置到电机
     
   /**
-    * Method using FOC to set Uq to the motor at the optimal angle
-    * Heart of the FOC algorithm
+    * 使用FOC在最佳角度设置Uq到电机的方法
+    * FOC算法的核心
     * 
-    * @param Uq Current voltage in q axis to set to the motor
-    * @param Ud Current voltage in d axis to set to the motor
-    * @param angle_el current electrical angle of the motor
+    * @param Uq 当前在q轴上设置到电机的电压
+    * @param Ud 当前在d轴上设置到电机的电压
+    * @param angle_el 当前电机的电气角度
     */
     void setPhaseVoltage(float Uq, float Ud, float angle_el) override;
 
   private:
-    // FOC methods 
+    // FOC方法 
 
-    /** Sensor alignment to electrical 0 angle of the motor */
+    /** 将传感器对齐到电机的电气零角 */
     int alignSensor();
-    /** Current sense and motor phase alignment */
+    /** 当前感应和电机相位对齐 */
     int alignCurrentSense();
-    /** Motor and sensor alignment to the sensors absolute 0 angle  */
+    /** 电机和传感器对齐到传感器的绝对零角 */
     int absoluteZeroSearch();
 
         
-    // Open loop motion control    
+    // 开环运动控制    
     /**
-     * Function (iterative) generating open loop movement for target velocity
-     * it uses voltage_limit variable
+     * 生成目标速度的开环运动的函数（迭代）
+     * 使用电压限制变量
      * 
      * @param target_velocity - rad/s
      */
     float velocityOpenloop(float target_velocity);
     /**
-     * Function (iterative) generating open loop movement towards the target angle
-     * it uses voltage_limit and velocity_limit variables
+     * 生成朝向目标角度的开环运动的函数（迭代）
+     * 使用电压限制和速度限制变量
      * 
      * @param target_angle - rad
      */
     float angleOpenloop(float target_angle);
-    // open loop variables
+    // 开环变量
     long open_loop_timestamp;
 };
-
 
 #endif

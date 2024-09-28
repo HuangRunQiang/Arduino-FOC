@@ -1,98 +1,96 @@
 #include "BLDCMotor.h"
 #include "./communication/SimpleFOCDebug.h"
 
-
-// see https://www.youtube.com/watch?v=InzXA7mWBWE Slide 5
-// each is 60 degrees with values for 3 phases of 1=positive -1=negative 0=high-z
+// 见 https://www.youtube.com/watch?v=InzXA7mWBWE 第5张幻灯片
+// 每个为60度，3相的值为1=正，-1=负，0=高阻抗
 int trap_120_map[6][3] = {
-    {_HIGH_IMPEDANCE,1,-1},
-    {-1,1,_HIGH_IMPEDANCE},
-    {-1,_HIGH_IMPEDANCE,1},
-    {_HIGH_IMPEDANCE,-1,1},
-    {1,-1,_HIGH_IMPEDANCE},
-    {1,_HIGH_IMPEDANCE,-1} 
+    {_HIGH_IMPEDANCE, 1, -1},
+    {-1, 1, _HIGH_IMPEDANCE},
+    {-1, _HIGH_IMPEDANCE, 1},
+    {_HIGH_IMPEDANCE, -1, 1},
+    {1, -1, _HIGH_IMPEDANCE},
+    {1, _HIGH_IMPEDANCE, -1} 
 };
 
-// see https://www.youtube.com/watch?v=InzXA7mWBWE Slide 8
-// each is 30 degrees with values for 3 phases of 1=positive -1=negative 0=high-z
+// 见 https://www.youtube.com/watch?v=InzXA7mWBWE 第8张幻灯片
+// 每个为30度，3相的值为1=正，-1=负，0=高阻抗
 int trap_150_map[12][3] = {
-    {_HIGH_IMPEDANCE,1,-1},
-    {-1,1,-1},
-    {-1,1,_HIGH_IMPEDANCE},
-    {-1,1,1},
-    {-1,_HIGH_IMPEDANCE,1},
-    {-1,-1,1},
-    {_HIGH_IMPEDANCE,-1,1},
-    {1,-1,1},
-    {1,-1,_HIGH_IMPEDANCE},
-    {1,-1,-1},
-    {1,_HIGH_IMPEDANCE,-1},
-    {1,1,-1} 
+    {_HIGH_IMPEDANCE, 1, -1},
+    {-1, 1, -1},
+    {-1, 1, _HIGH_IMPEDANCE},
+    {-1, 1, 1},
+    {-1, _HIGH_IMPEDANCE, 1},
+    {-1, -1, 1},
+    {_HIGH_IMPEDANCE, -1, 1},
+    {1, -1, 1},
+    {1, -1, _HIGH_IMPEDANCE},
+    {1, -1, -1},
+    {1, _HIGH_IMPEDANCE, -1},
+    {1, 1, -1} 
 };
 
 // BLDCMotor( int pp , float R)
-// - pp            - pole pair number
-// - R             - motor phase resistance
-// - KV            - motor kv rating (rmp/v)
-// - L             - motor phase inductance
+// - pp            - 极对数
+// - R             - 电机相电阻
+// - KV            - 电机KV额定值（转速/伏特）
+// - L             - 电机相电感
 BLDCMotor::BLDCMotor(int pp, float _R, float _KV, float _inductance)
 : FOCMotor()
 {
-  // save pole pairs number
+  // 保存极对数
   pole_pairs = pp;
-  // save phase resistance number
+  // 保存相电阻
   phase_resistance = _R;
-  // save back emf constant KV = 1/KV
-  // 1/sqrt(2) - rms value
+  // 保存反电动势常数 KV = 1/KV
+  // 1/sqrt(2) - 有效值
   KV_rating = NOT_SET;
   if (_isset(_KV))
     KV_rating = _KV;
-  // save phase inductance
+  // 保存相电感
   phase_inductance = _inductance;
 
-  // torque control type is voltage by default
+  // 默认的扭矩控制类型是电压
   torque_controller = TorqueControlType::voltage;
 }
 
-
 /**
-	Link the driver which controls the motor
+	链接控制电机的驱动器
 */
 void BLDCMotor::linkDriver(BLDCDriver* _driver) {
   driver = _driver;
 }
 
-// init hardware pins
+// 初始化硬件引脚
 int BLDCMotor::init() {
   if (!driver || !driver->initialized) {
     motor_status = FOCMotorStatus::motor_init_failed;
-    SIMPLEFOC_DEBUG("MOT: Init not possible, driver not initialized");
+    SIMPLEFOC_DEBUG("MOT: 初始化失败，驱动器未初始化");
     return 0;
   }
   motor_status = FOCMotorStatus::motor_initializing;
-  SIMPLEFOC_DEBUG("MOT: Init");
+  SIMPLEFOC_DEBUG("MOT: 初始化中");
 
-  // sanity check for the voltage limit configuration
-  if(voltage_limit > driver->voltage_limit) voltage_limit =  driver->voltage_limit;
-  // constrain voltage for sensor alignment
+  // 对电压限制配置进行合理性检查
+  if(voltage_limit > driver->voltage_limit) voltage_limit = driver->voltage_limit;
+  // 限制传感器对齐的电压
   if(voltage_sensor_align > voltage_limit) voltage_sensor_align = voltage_limit;
 
-  // update the controller limits
+  // 更新控制器限制
   if(current_sense){
-    // current control loop controls voltage
+    // 电流控制循环控制电压
     PID_current_q.limit = voltage_limit;
     PID_current_d.limit = voltage_limit;
   }
   if(_isset(phase_resistance) || torque_controller != TorqueControlType::voltage){
-    // velocity control loop controls current
+    // 速度控制循环控制电流
     PID_velocity.limit = current_limit;
   }else{
-    // velocity control loop controls the voltage
+    // 速度控制循环控制电压
     PID_velocity.limit = voltage_limit;
   }
   P_angle.limit = velocity_limit;
 
-  // if using open loop control, set a CW as the default direction if not already set
+  // 如果使用开环控制，如果尚未设置，则将顺时针设置为默认方向
   if ((controller==MotionControlType::angle_openloop
      ||controller==MotionControlType::velocity_openloop)
      && (sensor_direction == Direction::UNKNOWN)) {
@@ -100,95 +98,94 @@ int BLDCMotor::init() {
   }
 
   _delay(500);
-  // enable motor
-  SIMPLEFOC_DEBUG("MOT: Enable driver.");
+  // 启用电机
+  SIMPLEFOC_DEBUG("MOT: 启用驱动器。");
   enable();
   _delay(500);
   motor_status = FOCMotorStatus::motor_uncalibrated;
   return 1;
 }
 
-
-// disable motor driver
+// 禁用电机驱动器
 void BLDCMotor::disable()
 {
-  // disable the current sense
+  // 禁用电流传感
   if(current_sense) current_sense->disable();
-  // set zero to PWM
+  // 设置PWM为零
   driver->setPwm(0, 0, 0);
-  // disable the driver
+  // 禁用驱动器
   driver->disable();
-  // motor status update
+  // 更新电机状态
   enabled = 0;
 }
-// enable motor driver
+
+// 启用电机驱动器
 void BLDCMotor::enable()
 {
-  // enable the driver
+  // 启用驱动器
   driver->enable();
-  // set zero to PWM
+  // 设置PWM为零
   driver->setPwm(0, 0, 0);
-  // enable the current sense
+  // 启用电流传感
   if(current_sense) current_sense->enable();
-  // reset the pids
+  // 重置PID
   PID_velocity.reset();
   P_angle.reset();
   PID_current_q.reset();
   PID_current_d.reset();
-  // motor status update
+  // 更新电机状态
   enabled = 1;
 }
 
 /**
-  FOC functions
+  FOC 函数
 */
-// FOC initialization function
-int  BLDCMotor::initFOC() {
+// FOC 初始化函数
+int BLDCMotor::initFOC() {
   int exit_flag = 1;
 
   motor_status = FOCMotorStatus::motor_calibrating;
 
-  // align motor if necessary
-  // alignment necessary for encoders!
-  // sensor and motor alignment - can be skipped
-  // by setting motor.sensor_direction and motor.zero_electric_angle
+  // 如果需要，进行电机对齐
+  // 对于编码器，必须进行对齐！
+  // 传感器和电机对齐 - 可以通过设置 motor.sensor_direction 和 motor.zero_electric_angle 跳过
   if(sensor){
     exit_flag *= alignSensor();
-    // added the shaft_angle update
+    // 更新轴角
     sensor->update();
     shaft_angle = shaftAngle();
 
-    // aligning the current sensor - can be skipped
-    // checks if driver phases are the same as current sense phases
-    // and checks the direction of measuremnt.
+    // 对当前传感器进行对齐 - 可以跳过
+    // 检查驱动器相是否与电流传感相同
+    // 并检查测量方向。
     if(exit_flag){
       if(current_sense){ 
         if (!current_sense->initialized) {
           motor_status = FOCMotorStatus::motor_calib_failed;
-          SIMPLEFOC_DEBUG("MOT: Init FOC error, current sense not initialized");
+          SIMPLEFOC_DEBUG("MOT: 初始化 FOC 错误，电流传感未初始化");
           exit_flag = 0;
         }else{
           exit_flag *= alignCurrentSense();
         }
       }
-      else { SIMPLEFOC_DEBUG("MOT: No current sense."); }
+      else { SIMPLEFOC_DEBUG("MOT: 没有电流传感器。"); }
     }
 
   } else {
-    SIMPLEFOC_DEBUG("MOT: No sensor.");
+    SIMPLEFOC_DEBUG("MOT: 没有传感器。");
     if ((controller == MotionControlType::angle_openloop || controller == MotionControlType::velocity_openloop)){
       exit_flag = 1;    
-      SIMPLEFOC_DEBUG("MOT: Openloop only!");
+      SIMPLEFOC_DEBUG("MOT: 仅开环控制！");
     }else{
-      exit_flag = 0; // no FOC without sensor
+      exit_flag = 0; // 没有传感器无法进行FOC
     }
   }
 
   if(exit_flag){
-    SIMPLEFOC_DEBUG("MOT: Ready.");
+    SIMPLEFOC_DEBUG("MOT: 准备就绪。");
     motor_status = FOCMotorStatus::motor_ready;
   }else{
-    SIMPLEFOC_DEBUG("MOT: Init FOC failed.");
+    SIMPLEFOC_DEBUG("MOT: 初始化 FOC 失败。");
     motor_status = FOCMotorStatus::motor_calib_failed;
     disable();
   }
@@ -196,70 +193,71 @@ int  BLDCMotor::initFOC() {
   return exit_flag;
 }
 
-// Calibarthe the motor and current sense phases
+
+// 校准电机和电流传感器相位
 int BLDCMotor::alignCurrentSense() {
-  int exit_flag = 1; // success
+  int exit_flag = 1; // 成功
 
-  SIMPLEFOC_DEBUG("MOT: Align current sense.");
+  SIMPLEFOC_DEBUG("MOT: 对齐电流传感器。");
 
-  // align current sense and the driver
+  // 对齐电流传感器和驱动器
   exit_flag = current_sense->driverAlign(voltage_sensor_align, modulation_centered);
   if(!exit_flag){
-    // error in current sense - phase either not measured or bad connection
-    SIMPLEFOC_DEBUG("MOT: Align error!");
+    // 电流传感器错误 - 相位未测量或连接不良
+    SIMPLEFOC_DEBUG("MOT: 对齐错误！");
     exit_flag = 0;
   }else{
-    // output the alignment status flag
-    SIMPLEFOC_DEBUG("MOT: Success: ", exit_flag);
+    // 输出对齐状态标志
+    SIMPLEFOC_DEBUG("MOT: 成功: ", exit_flag);
   }
 
   return exit_flag > 0;
 }
 
-// Encoder alignment to electrical 0 angle
+// 编码器对齐到电气零角
 int BLDCMotor::alignSensor() {
-  int exit_flag = 1; //success
-  SIMPLEFOC_DEBUG("MOT: Align sensor.");
+  int exit_flag = 1; // 成功
+  SIMPLEFOC_DEBUG("MOT: 对齐传感器。");
 
-  // check if sensor needs zero search
+  // 检查传感器是否需要零搜索
   if(sensor->needsSearch()) exit_flag = absoluteZeroSearch();
-  // stop init if not found index
+  // 如果未找到索引则停止初始化
   if(!exit_flag) return exit_flag;
 
-  // v2.3.3 fix for R_AVR_7_PCREL against symbol" bug for AVR boards
-  // TODO figure out why this works
+  // v2.3.3 修复 R_AVR_7_PCREL 对 AVR 板的符号“ bug
+  // TODO 找出为什么这样做有效
   float voltage_align = voltage_sensor_align;
 
-  // if unknown natural direction
+  // 如果自然方向未知
   if(sensor_direction==Direction::UNKNOWN){
 
-    // find natural direction
-    // move one electrical revolution forward
+    // 找到自然方向
+    // 向前移动一个电气周期
     for (int i = 0; i <=500; i++ ) {
       float angle = _3PI_2 + _2PI * i / 500.0f;
       setPhaseVoltage(voltage_align, 0,  angle);
-	    sensor->update();
+      sensor->update();
       _delay(2);
     }
-    // take and angle in the middle
+    // 在中间取一个角度
     sensor->update();
     float mid_angle = sensor->getAngle();
-    // move one electrical revolution backwards
+    // 向后移动一个电气周期
     for (int i = 500; i >=0; i-- ) {
       float angle = _3PI_2 + _2PI * i / 500.0f ;
       setPhaseVoltage(voltage_align, 0,  angle);
-	    sensor->update();
+      sensor->update();
       _delay(2);
     }
     sensor->update();
     float end_angle = sensor->getAngle();
     // setPhaseVoltage(0, 0, 0);
     _delay(200);
-    // determine the direction the sensor moved
+    // 确定传感器移动的方向
     float moved =  fabs(mid_angle - end_angle);
-    if (moved<MIN_ANGLE_DETECT_MOVEMENT) { // minimum angle to detect movement
-      SIMPLEFOC_DEBUG("MOT: Failed to notice movement");
-      return 0; // failed calibration
+    if (moved<MIN_ANGLE_DETECT_MOVEMENT) { // 检测移动的最小角度
+      SIMPLEFOC_DEBUG("MOT: 未能注意到移动");
+      return 0; // 校准失败
     } else if (mid_angle < end_angle) {
       SIMPLEFOC_DEBUG("MOT: sensor_direction==CCW");
       sensor_direction = Direction::CCW;
@@ -267,46 +265,46 @@ int BLDCMotor::alignSensor() {
       SIMPLEFOC_DEBUG("MOT: sensor_direction==CW");
       sensor_direction = Direction::CW;
     }
-    // check pole pair number
-    pp_check_result = !(fabs(moved*pole_pairs - _2PI) > 0.5f); // 0.5f is arbitrary number it can be lower or higher!
+    // 检查极对数
+    pp_check_result = !(fabs(moved*pole_pairs - _2PI) > 0.5f); // 0.5f 是一个任意值，可以更低或更高！
     if( pp_check_result==false ) {
-      SIMPLEFOC_DEBUG("MOT: PP check: fail - estimated pp: ", _2PI/moved);
+      SIMPLEFOC_DEBUG("MOT: PP 检查: 失败 - 估计的极对数: ", _2PI/moved);
     } else {
-      SIMPLEFOC_DEBUG("MOT: PP check: OK!");
+      SIMPLEFOC_DEBUG("MOT: PP 检查: 成功！");
     }
 
-  } else { SIMPLEFOC_DEBUG("MOT: Skip dir calib."); }
+  } else { SIMPLEFOC_DEBUG("MOT: 跳过方向校准。"); }
 
-  // zero electric angle not known
+  // 零电气角未知
   if(!_isset(zero_electric_angle)){
-    // align the electrical phases of the motor and sensor
-    // set angle -90(270 = 3PI/2) degrees
+    // 对齐电机和传感器的电气相位
+    // 设置角度 -90（270 = 3PI/2）度
     setPhaseVoltage(voltage_align, 0,  _3PI_2);
     _delay(700);
-    // read the sensor
+    // 读取传感器
     sensor->update();
-    // get the current zero electric angle
+    // 获取当前零电气角
     zero_electric_angle = 0;
     zero_electric_angle = electricalAngle();
-    //zero_electric_angle =  _normalizeAngle(_electricalAngle(sensor_direction*sensor->getAngle(), pole_pairs));
+    // zero_electric_angle =  _normalizeAngle(_electricalAngle(sensor_direction*sensor->getAngle(), pole_pairs));
     _delay(20);
     if(monitor_port){
-      SIMPLEFOC_DEBUG("MOT: Zero elec. angle: ", zero_electric_angle);
+      SIMPLEFOC_DEBUG("MOT: 零电气角: ", zero_electric_angle);
     }
-    // stop everything
+    // 停止一切
     setPhaseVoltage(0, 0, 0);
     _delay(200);
-  } else { SIMPLEFOC_DEBUG("MOT: Skip offset calib."); }
+  } else { SIMPLEFOC_DEBUG("MOT: 跳过偏移校准。"); }
   return exit_flag;
 }
 
-// Encoder alignment the absolute zero angle
-// - to the index
+// 编码器对齐绝对零角
+// - 到索引
 int BLDCMotor::absoluteZeroSearch() {
-  // sensor precision: this is all ok, as the search happens near the 0-angle, where the precision
-  //                    of float is sufficient.
-  SIMPLEFOC_DEBUG("MOT: Index search...");
-  // search the absolute zero with small velocity
+  // 传感器精度：这都没问题，因为搜索发生在零角附近，浮点数的精度
+  //                    是足够的。
+  SIMPLEFOC_DEBUG("MOT: 索引搜索...");
+  // 以小速度搜索绝对零
   float limit_vel = velocity_limit;
   float limit_volt = voltage_limit;
   velocity_limit = velocity_index_search;
@@ -314,279 +312,274 @@ int BLDCMotor::absoluteZeroSearch() {
   shaft_angle = 0;
   while(sensor->needsSearch() && shaft_angle < _2PI){
     angleOpenloop(1.5f*_2PI);
-    // call important for some sensors not to loose count
-    // not needed for the search
+    // 对于某些传感器，调用很重要，以免丢失计数
+    // 对于搜索来说不是必需的
     sensor->update();
   }
-  // disable motor
+  // 禁用电机
   setPhaseVoltage(0, 0, 0);
-  // reinit the limits
+  // 重新初始化限制
   velocity_limit = limit_vel;
   voltage_limit = limit_volt;
-  // check if the zero found
+  // 检查是否找到零
   if(monitor_port){
-    if(sensor->needsSearch()) { SIMPLEFOC_DEBUG("MOT: Error: Not found!"); }
-    else { SIMPLEFOC_DEBUG("MOT: Success!"); }
+    if(sensor->needsSearch()) { SIMPLEFOC_DEBUG("MOT: 错误: 未找到！"); }
+    else { SIMPLEFOC_DEBUG("MOT: 成功！"); }
   }
   return !sensor->needsSearch();
 }
 
-// Iterative function looping FOC algorithm, setting Uq on the Motor
-// The faster it can be run the better
+// 迭代函数循环 FOC 算法，在电机上设置 Uq
+// 运行得越快越好
 void BLDCMotor::loopFOC() {
-  // update sensor - do this even in open-loop mode, as user may be switching between modes and we could lose track
-  //                 of full rotations otherwise.
+  // 更新传感器 - 即使在开环模式下也要这样做，因为用户可能在模式之间切换，我们可能会丢失跟踪
+  //                 完整的旋转。
   if (sensor) sensor->update();
 
-  // if open-loop do nothing
+  // 如果是开环则不做任何操作
   if( controller==MotionControlType::angle_openloop || controller==MotionControlType::velocity_openloop ) return;
   
-  // if disabled do nothing
+  // 如果禁用则不做任何操作
   if(!enabled) return;
 
-  // Needs the update() to be called first
-  // This function will not have numerical issues because it uses Sensor::getMechanicalAngle() 
-  // which is in range 0-2PI
+  // 需要先调用 update()
+  // 此函数不会有数值问题，因为它使用 Sensor::getMechanicalAngle() 
+  // 该值范围在 0-2PI 之间
   electrical_angle = electricalAngle();
   switch (torque_controller) {
     case TorqueControlType::voltage:
-      // no need to do anything really
+      // 实际上不需要做任何事情
       break;
     case TorqueControlType::dc_current:
       if(!current_sense) return;
-      // read overall current magnitude
+      // 读取整体电流幅度
       current.q = current_sense->getDCCurrent(electrical_angle);
-      // filter the value values
+      // 对值进行滤波
       current.q = LPF_current_q(current.q);
-      // calculate the phase voltage
+      // 计算相电压
       voltage.q = PID_current_q(current_sp - current.q);
-      // d voltage  - lag compensation
+      // d 电压 - 滞后补偿
       if(_isset(phase_inductance)) voltage.d = _constrain( -current_sp*shaft_velocity*pole_pairs*phase_inductance, -voltage_limit, voltage_limit);
       else voltage.d = 0;
       break;
     case TorqueControlType::foc_current:
       if(!current_sense) return;
-      // read dq currents
+      // 读取 dq 电流
       current = current_sense->getFOCCurrents(electrical_angle);
-      // filter values
+      // 滤波值
       current.q = LPF_current_q(current.q);
       current.d = LPF_current_d(current.d);
-      // calculate the phase voltages
+      // 计算相电压
       voltage.q = PID_current_q(current_sp - current.q);
       voltage.d = PID_current_d(-current.d);
-      // d voltage - lag compensation - TODO verify
+      // d 电压 - 滞后补偿 - TODO 验证
       // if(_isset(phase_inductance)) voltage.d = _constrain( voltage.d - current_sp*shaft_velocity*pole_pairs*phase_inductance, -voltage_limit, voltage_limit);
       break;
     default:
-      // no torque control selected
-      SIMPLEFOC_DEBUG("MOT: no torque control selected!");
+      // 未选择扭矩控制
+      SIMPLEFOC_DEBUG("MOT: 未选择扭矩控制！");
       break;
   }
 
-  // set the phase voltage - FOC heart function :)
+  // 设置相电压 - FOC 核心功能 :)
   setPhaseVoltage(voltage.q, voltage.d, electrical_angle);
 }
 
-// Iterative function running outer loop of the FOC algorithm
-// Behavior of this function is determined by the motor.controller variable
-// It runs either angle, velocity or torque loop
-// - needs to be called iteratively it is asynchronous function
-// - if target is not set it uses motor.target value
+// 迭代函数运行 FOC 算法的外部循环
+// 此函数的行为由 motor.controller 变量决定
+// 它运行角度、速度或扭矩循环
+// - 需要迭代调用，这是异步函数
+// - 如果目标未设置，则使用 motor.target 值
 void BLDCMotor::move(float new_target) {
 
-  // set internal target variable
+  // 设置内部目标变量
   if(_isset(new_target)) target = new_target;
   
-  // downsampling (optional)
+  // 下采样（可选）
   if(motion_cnt++ < motion_downsample) return;
   motion_cnt = 0;
 
-  // shaft angle/velocity need the update() to be called first
-  // get shaft angle
-  // TODO sensor precision: the shaft_angle actually stores the complete position, including full rotations, as a float
-  //                        For this reason it is NOT precise when the angles become large.
-  //                        Additionally, the way LPF works on angle is a precision issue, and the angle-LPF is a problem
-  //                        when switching to a 2-component representation.
+  // 轴角/速度需要先调用 update()
+  // 获取轴角
+  // TODO 传感器精度：shaft_angle 实际上存储了完整的位置，包括完整的旋转，作为浮点数
+  //                        因此在角度变大时并不精确。
+  //                        此外，LPF 在角度上的工作方式是精度问题，当切换到 2 组件表示时，角度-LPF 是一个问题。
   if( controller!=MotionControlType::angle_openloop && controller!=MotionControlType::velocity_openloop ) 
-    shaft_angle = shaftAngle(); // read value even if motor is disabled to keep the monitoring updated but not in openloop mode
-  // get angular velocity  TODO the velocity reading probably also shouldn't happen in open loop modes?
-  shaft_velocity = shaftVelocity(); // read value even if motor is disabled to keep the monitoring updated
+    shaft_angle = shaftAngle(); // 读取值，即使电机被禁用也保持监控更新，但在开环模式下不这样做
+  // 获取角速度 TODO 速度读取可能也不应该发生在开环模式中？
+  shaft_velocity = shaftVelocity(); // 读取值，即使电机被禁用也保持监控更新
 
-  // if disabled do nothing
+  // 如果禁用则不做任何操作
   if(!enabled) return;
   
-  // calculate the back-emf voltage if KV_rating available U_bemf = vel*(1/KV)
+  // 如果 KV_rating 可用，则计算反电动势电压 U_bemf = vel*(1/KV)
   if (_isset(KV_rating)) voltage_bemf = shaft_velocity/(KV_rating*_SQRT3)/_RPM_TO_RADS;
-  // estimate the motor current if phase reistance available and current_sense not available
+  // 如果相位电阻可用且当前传感器不可用，则估算电机电流
   if(!current_sense && _isset(phase_resistance)) current.q = (voltage.q - voltage_bemf)/phase_resistance;
 
-  // upgrade the current based voltage limit
+  // 基于电流的电压限制升级
   switch (controller) {
     case MotionControlType::torque:
-      if(torque_controller == TorqueControlType::voltage){ // if voltage torque control
+      if(torque_controller == TorqueControlType::voltage){ // 如果是电压扭矩控制
         if(!_isset(phase_resistance))  voltage.q = target;
         else  voltage.q =  target*phase_resistance + voltage_bemf;
         voltage.q = _constrain(voltage.q, -voltage_limit, voltage_limit);
-        // set d-component (lag compensation if known inductance)
+        // 设置 d 组件（如果已知电感的滞后补偿）
         if(!_isset(phase_inductance)) voltage.d = 0;
         else voltage.d = _constrain( -target*shaft_velocity*pole_pairs*phase_inductance, -voltage_limit, voltage_limit);
       }else{
-        current_sp = target; // if current/foc_current torque control
+        current_sp = target; // 如果是电流/foc_current 扭矩控制
       }
       break;
     case MotionControlType::angle:
-      // TODO sensor precision: this calculation is not numerically precise. The target value cannot express precise positions when
-      //                        the angles are large. This results in not being able to command small changes at high position values.
-      //                        to solve this, the delta-angle has to be calculated in a numerically precise way.
-      // angle set point
+      // TODO 传感器精度：此计算在数值上不精确。当角度较大时，目标值无法表示精确位置。
+      //                        这导致在高位置值时无法命令小变化。
+      //                        要解决此问题，必须以数值精确的方式计算增量角。
+      // 角度设定点
       shaft_angle_sp = target;
-      // calculate velocity set point
+      // 计算速度设定点
       shaft_velocity_sp = feed_forward_velocity + P_angle( shaft_angle_sp - shaft_angle );
       shaft_velocity_sp = _constrain(shaft_velocity_sp,-velocity_limit, velocity_limit);
-      // calculate the torque command - sensor precision: this calculation is ok, but based on bad value from previous calculation
-      current_sp = PID_velocity(shaft_velocity_sp - shaft_velocity); // if voltage torque control
-      // if torque controlled through voltage
+      // 计算扭矩命令 - 传感器精度：此计算是可以的，但基于之前计算的错误值
+      current_sp = PID_velocity(shaft_velocity_sp - shaft_velocity); // 如果是电压扭矩控制
+      // 如果通过电压控制扭矩
       if(torque_controller == TorqueControlType::voltage){
-        // use voltage if phase-resistance not provided
+        // 如果未提供相位电阻，则使用电压
         if(!_isset(phase_resistance))  voltage.q = current_sp;
         else  voltage.q =  _constrain( current_sp*phase_resistance + voltage_bemf , -voltage_limit, voltage_limit);
-        // set d-component (lag compensation if known inductance)
+        // 设置 d 组件（如果已知电感的滞后补偿）
         if(!_isset(phase_inductance)) voltage.d = 0;
         else voltage.d = _constrain( -current_sp*shaft_velocity*pole_pairs*phase_inductance, -voltage_limit, voltage_limit);
       }
       break;
     case MotionControlType::velocity:
-      // velocity set point - sensor precision: this calculation is numerically precise.
+      // 速度设定点 - 传感器精度：此计算在数值上是精确的。
       shaft_velocity_sp = target;
-      // calculate the torque command
-      current_sp = PID_velocity(shaft_velocity_sp - shaft_velocity); // if current/foc_current torque control
-      // if torque controlled through voltage control
+      // 计算扭矩命令
+      current_sp = PID_velocity(shaft_velocity_sp - shaft_velocity); // 如果是电流/foc_current 扭矩控制
+      // 如果通过电压控制扭矩
       if(torque_controller == TorqueControlType::voltage){
-        // use voltage if phase-resistance not provided
+        // 如果未提供相位电阻，则使用电压
         if(!_isset(phase_resistance))  voltage.q = current_sp;
         else  voltage.q = _constrain( current_sp*phase_resistance + voltage_bemf , -voltage_limit, voltage_limit);
-        // set d-component (lag compensation if known inductance)
+        // 设置 d 组件（如果已知电感的滞后补偿）
         if(!_isset(phase_inductance)) voltage.d = 0;
         else voltage.d = _constrain( -current_sp*shaft_velocity*pole_pairs*phase_inductance, -voltage_limit, voltage_limit);
       }
       break;
     case MotionControlType::velocity_openloop:
-      // velocity control in open loop - sensor precision: this calculation is numerically precise.
+      // 开环中的速度控制 - 传感器精度：此计算在数值上是精确的。
       shaft_velocity_sp = target;
-      voltage.q = velocityOpenloop(shaft_velocity_sp); // returns the voltage that is set to the motor
+      voltage.q = velocityOpenloop(shaft_velocity_sp); // 返回设置到电机的电压
       voltage.d = 0;
       break;
     case MotionControlType::angle_openloop:
-      // angle control in open loop - 
-      // TODO sensor precision: this calculation NOT numerically precise, and subject
-      //                        to the same problems in small set-point changes at high angles 
-      //                        as the closed loop version.
+      // 开环中的角度控制 - 
+      // TODO 传感器精度：此计算在数值上不精确，并且受到
+      //                        在高角度时小设定点变化的相同问题的影响
       shaft_angle_sp = target;
-      voltage.q = angleOpenloop(shaft_angle_sp); // returns the voltage that is set to the motor
+      voltage.q = angleOpenloop(shaft_angle_sp); // 返回设置到电机的电压
       voltage.d = 0;
       break;
   }
 }
 
 
-// Method using FOC to set Uq and Ud to the motor at the optimal angle
-// Function implementing Space Vector PWM and Sine PWM algorithms
+
+// 使用 FOC 方法在最佳角度设置 Uq 和 Ud 到电机
+// 实现空间矢量 PWM 和正弦 PWM 算法的函数
 //
-// Function using sine approximation
-// regular sin + cos ~300us    (no memory usage)
-// approx  _sin + _cos ~110us  (400Byte ~ 20% of memory)
+// 使用正弦近似的函数
+// 常规 sin + cos ~300us    (无内存使用)
+// 近似 _sin + _cos ~110us  (400Byte ~ 20% 的内存)
 void BLDCMotor::setPhaseVoltage(float Uq, float Ud, float angle_el) {
 
   float center;
   int sector;
-  float _ca,_sa;
+  float _ca, _sa;
 
   switch (foc_modulation)
   {
     case FOCModulationType::Trapezoid_120 :
-      // see https://www.youtube.com/watch?v=InzXA7mWBWE Slide 5
-      // determine the sector
-      sector = 6 * (_normalizeAngle(angle_el + _PI_6 ) / _2PI); // adding PI/6 to align with other modes
-      // centering the voltages around either
+      // 参见 https://www.youtube.com/watch?v=InzXA7mWBWE 第 5 幻灯片
+      // 确定扇区
+      sector = 6 * (_normalizeAngle(angle_el + _PI_6) / _2PI); // 添加 PI/6 以与其他模式对齐
+      // 电压居中
       // modulation_centered == true > driver.voltage_limit/2
-      // modulation_centered == false > or Adaptable centering, all phases drawn to 0 when Uq=0
-      center = modulation_centered ? (driver->voltage_limit)/2 : Uq;
+      // modulation_centered == false > 或可适应的居中，当 Uq=0 时所有相位拉到 0
+      center = modulation_centered ? (driver->voltage_limit) / 2 : Uq;
 
-      if(trap_120_map[sector][0]  == _HIGH_IMPEDANCE){
-        Ua= center;
+      if (trap_120_map[sector][0] == _HIGH_IMPEDANCE) {
+        Ua = center;
         Ub = trap_120_map[sector][1] * Uq + center;
         Uc = trap_120_map[sector][2] * Uq + center;
-        driver->setPhaseState(PhaseState::PHASE_OFF, PhaseState::PHASE_ON, PhaseState::PHASE_ON); // disable phase if possible
-      }else if(trap_120_map[sector][1]  == _HIGH_IMPEDANCE){
+        driver->setPhaseState(PhaseState::PHASE_OFF, PhaseState::PHASE_ON, PhaseState::PHASE_ON); // 尽可能禁用相位
+      } else if (trap_120_map[sector][1] == _HIGH_IMPEDANCE) {
         Ua = trap_120_map[sector][0] * Uq + center;
         Ub = center;
         Uc = trap_120_map[sector][2] * Uq + center;
-        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_OFF, PhaseState::PHASE_ON);// disable phase if possible
-      }else{
+        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_OFF, PhaseState::PHASE_ON); // 尽可能禁用相位
+      } else {
         Ua = trap_120_map[sector][0] * Uq + center;
         Ub = trap_120_map[sector][1] * Uq + center;
         Uc = center;
-        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_ON, PhaseState::PHASE_OFF);// disable phase if possible
+        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_ON, PhaseState::PHASE_OFF); // 尽可能禁用相位
       }
-
-    break;
+      break;
 
     case FOCModulationType::Trapezoid_150 :
-      // see https://www.youtube.com/watch?v=InzXA7mWBWE Slide 8
-      // determine the sector
-      sector = 12 * (_normalizeAngle(angle_el + _PI_6 ) / _2PI); // adding PI/6 to align with other modes
-      // centering the voltages around either
-      // modulation_centered == true > driver.voltage_limit/2
-      // modulation_centered == false > or Adaptable centering, all phases drawn to 0 when Uq=0
-      center = modulation_centered ? (driver->voltage_limit)/2 : Uq;
+      // 参见 https://www.youtube.com/watch?v=InzXA7mWBWE 第 8 幻灯片
+      // 确定扇区
+      sector = 12 * (_normalizeAngle(angle_el + _PI_6) / _2PI); // 添加 PI/6 以与其他模式对齐
+      // 电压居中
+      center = modulation_centered ? (driver->voltage_limit) / 2 : Uq;
 
-      if(trap_150_map[sector][0]  == _HIGH_IMPEDANCE){
-        Ua= center;
+      if (trap_150_map[sector][0] == _HIGH_IMPEDANCE) {
+        Ua = center;
         Ub = trap_150_map[sector][1] * Uq + center;
         Uc = trap_150_map[sector][2] * Uq + center;
-        driver->setPhaseState(PhaseState::PHASE_OFF, PhaseState::PHASE_ON, PhaseState::PHASE_ON); // disable phase if possible
-      }else if(trap_150_map[sector][1]  == _HIGH_IMPEDANCE){
+        driver->setPhaseState(PhaseState::PHASE_OFF, PhaseState::PHASE_ON, PhaseState::PHASE_ON); // 尽可能禁用相位
+      } else if (trap_150_map[sector][1] == _HIGH_IMPEDANCE) {
         Ua = trap_150_map[sector][0] * Uq + center;
         Ub = center;
         Uc = trap_150_map[sector][2] * Uq + center;
-        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_OFF, PhaseState::PHASE_ON); // disable phase if possible
-      }else if(trap_150_map[sector][2]  == _HIGH_IMPEDANCE){
+        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_OFF, PhaseState::PHASE_ON); // 尽可能禁用相位
+      } else if (trap_150_map[sector][2] == _HIGH_IMPEDANCE) {
         Ua = trap_150_map[sector][0] * Uq + center;
         Ub = trap_150_map[sector][1] * Uq + center;
         Uc = center;
-        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_ON, PhaseState::PHASE_OFF); // disable phase if possible
-      }else{
+        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_ON, PhaseState::PHASE_OFF); // 尽可能禁用相位
+      } else {
         Ua = trap_150_map[sector][0] * Uq + center;
         Ub = trap_150_map[sector][1] * Uq + center;
         Uc = trap_150_map[sector][2] * Uq + center;
-        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_ON, PhaseState::PHASE_ON); // enable all phases
+        driver->setPhaseState(PhaseState::PHASE_ON, PhaseState::PHASE_ON, PhaseState::PHASE_ON); // 启用所有相位
       }
-
-    break;
+      break;
 
     case FOCModulationType::SinePWM :
     case FOCModulationType::SpaceVectorPWM :
-      // Sinusoidal PWM modulation
-      // Inverse Park + Clarke transformation
+      // 正弦 PWM 调制
+      // 逆帕克 + 克拉克变换
       _sincos(angle_el, &_sa, &_ca);
 
-      // Inverse park transform
-      Ualpha =  _ca * Ud - _sa * Uq;  // -sin(angle) * Uq;
-      Ubeta =  _sa * Ud + _ca * Uq;    //  cos(angle) * Uq;
+      // 逆帕克变换
+      Ualpha = _ca * Ud - _sa * Uq;  // -sin(angle) * Uq;
+      Ubeta = _sa * Ud + _ca * Uq;    // cos(angle) * Uq;
 
-      // Clarke transform
+      // 克拉克变换
       Ua = Ualpha;
       Ub = -0.5f * Ualpha + _SQRT3_2 * Ubeta;
       Uc = -0.5f * Ualpha - _SQRT3_2 * Ubeta;
 
-      center = driver->voltage_limit/2;
-      if (foc_modulation == FOCModulationType::SpaceVectorPWM){
-        // discussed here: https://community.simplefoc.com/t/embedded-world-2023-stm32-cordic-co-processor/3107/165?u=candas1
-        // a bit more info here: https://microchipdeveloper.com/mct5001:which-zsm-is-best
-        // Midpoint Clamp
+      center = driver->voltage_limit / 2;
+      if (foc_modulation == FOCModulationType::SpaceVectorPWM) {
+        // 这里讨论过: https://community.simplefoc.com/t/embedded-world-2023-stm32-cordic-co-processor/3107/165?u=candas1
+        // 这里有更多信息: https://microchipdeveloper.com/mct5001:which-zsm-is-best
+        // 中点夹紧
         float Umin = min(Ua, min(Ub, Uc));
         float Umax = max(Ua, max(Ub, Uc));
-        center -= (Umax+Umin) / 2;
+        center -= (Umax + Umin) / 2;
       } 
 
       if (!modulation_centered) {
@@ -594,90 +587,84 @@ void BLDCMotor::setPhaseVoltage(float Uq, float Ud, float angle_el) {
         Ua -= Umin;
         Ub -= Umin;
         Uc -= Umin;
-      }else{
+      } else {
         Ua += center;
         Ub += center;
         Uc += center;
       }
-
       break;
-
   }
 
-  // set the voltages in driver
+  // 在驱动器中设置电压
   driver->setPwm(Ua, Ub, Uc);
 }
 
-
-
-// Function (iterative) generating open loop movement for target velocity
-// - target_velocity - rad/s
-// it uses voltage_limit variable
-float BLDCMotor::velocityOpenloop(float target_velocity){
-  // get current timestamp
+// 生成开环运动以达到目标速度的函数（迭代）
+// - target_velocity - 弧度/秒
+// 使用 voltage_limit 变量
+float BLDCMotor::velocityOpenloop(float target_velocity) {
+  // 获取当前时间戳
   unsigned long now_us = _micros();
-  // calculate the sample time from last call
+  // 计算上次调用的采样时间
   float Ts = (now_us - open_loop_timestamp) * 1e-6f;
-  // quick fix for strange cases (micros overflow + timestamp not defined)
-  if(Ts <= 0 || Ts > 0.5f) Ts = 1e-3f;
+  // 针对奇怪情况的快速修复（微秒溢出 + 时间戳未定义）
+  if (Ts <= 0 || Ts > 0.5f) Ts = 1e-3f;
 
-  // calculate the necessary angle to achieve target velocity
-  shaft_angle = _normalizeAngle(shaft_angle + target_velocity*Ts);
-  // for display purposes
+  // 计算达到目标速度所需的角度
+  shaft_angle = _normalizeAngle(shaft_angle + target_velocity * Ts);
+  // 出于显示目的
   shaft_velocity = target_velocity;
 
-  // use voltage limit or current limit
+  // 使用电压限制或电流限制
   float Uq = voltage_limit;
-  if(_isset(phase_resistance)){
-    Uq = _constrain(current_limit*phase_resistance + fabs(voltage_bemf),-voltage_limit, voltage_limit);
-    // recalculate the current  
-    current.q = (Uq - fabs(voltage_bemf))/phase_resistance;
+  if (_isset(phase_resistance)) {
+    Uq = _constrain(current_limit * phase_resistance + fabs(voltage_bemf), -voltage_limit, voltage_limit);
+    // 重新计算电流  
+    current.q = (Uq - fabs(voltage_bemf)) / phase_resistance;
   }
-  // set the maximal allowed voltage (voltage_limit) with the necessary angle
-  setPhaseVoltage(Uq,  0, _electricalAngle(shaft_angle, pole_pairs));
+  // 使用所需角度设置最大允许电压（voltage_limit）
+  setPhaseVoltage(Uq, 0, _electricalAngle(shaft_angle, pole_pairs));
 
-  // save timestamp for next call
+  // 保存时间戳以便下次调用
   open_loop_timestamp = now_us;
 
   return Uq;
 }
 
-// Function (iterative) generating open loop movement towards the target angle
-// - target_angle - rad
-// it uses voltage_limit and velocity_limit variables
-float BLDCMotor::angleOpenloop(float target_angle){
-  // get current timestamp
+// 生成开环运动以达到目标角度的函数（迭代）
+// - target_angle - 弧度
+// 使用 voltage_limit 和 velocity_limit 变量
+float BLDCMotor::angleOpenloop(float target_angle) {
+  // 获取当前时间戳
   unsigned long now_us = _micros();
-  // calculate the sample time from last call
+  // 计算上次调用的采样时间
   float Ts = (now_us - open_loop_timestamp) * 1e-6f;
-  // quick fix for strange cases (micros overflow + timestamp not defined)
-  if(Ts <= 0 || Ts > 0.5f) Ts = 1e-3f;
+  // 针对奇怪情况的快速修复（微秒溢出 + 时间戳未定义）
+  if (Ts <= 0 || Ts > 0.5f) Ts = 1e-3f;
 
-  // calculate the necessary angle to move from current position towards target angle
-  // with maximal velocity (velocity_limit)
-  // TODO sensor precision: this calculation is not numerically precise. The angle can grow to the point
-  //                        where small position changes are no longer captured by the precision of floats
-  //                        when the total position is large.
-  if(abs( target_angle - shaft_angle ) > abs(velocity_limit*Ts)){
-    shaft_angle += _sign(target_angle - shaft_angle) * abs( velocity_limit )*Ts;
+  // 计算从当前位置移动到目标角度所需的角度
+  // 最大速度（velocity_limit）
+  // TODO 传感器精度：此计算在数值上不精确。当总位置较大时，角度可能增长到小位置变化无法通过浮点数精度捕获的程度。
+  if (abs(target_angle - shaft_angle) > abs(velocity_limit * Ts)) {
+    shaft_angle += _sign(target_angle - shaft_angle) * abs(velocity_limit) * Ts;
     shaft_velocity = velocity_limit;
-  }else{
+  } else {
     shaft_angle = target_angle;
     shaft_velocity = 0;
   }
 
-  // use voltage limit or current limit
+  // 使用电压限制或电流限制
   float Uq = voltage_limit;
-  if(_isset(phase_resistance)){
-    Uq = _constrain(current_limit*phase_resistance + fabs(voltage_bemf),-voltage_limit, voltage_limit);
-    // recalculate the current  
-    current.q = (Uq - fabs(voltage_bemf))/phase_resistance;
+  if (_isset(phase_resistance)) {
+    Uq = _constrain(current_limit * phase_resistance + fabs(voltage_bemf), -voltage_limit, voltage_limit);
+    // 重新计算电流  
+    current.q = (Uq - fabs(voltage_bemf)) / phase_resistance;
   }
-  // set the maximal allowed voltage (voltage_limit) with the necessary angle
-  // sensor precision: this calculation is OK due to the normalisation
-  setPhaseVoltage(Uq,  0, _electricalAngle(_normalizeAngle(shaft_angle), pole_pairs));
+  // 使用所需角度设置最大允许电压（voltage_limit）
+  // 传感器精度：此计算是可以的，因为进行了归一化
+  setPhaseVoltage(Uq, 0, _electricalAngle(_normalizeAngle(shaft_angle), pole_pairs));
 
-  // save timestamp for next call
+  // 保存时间戳以便下次调用
   open_loop_timestamp = now_us;
 
   return Uq;

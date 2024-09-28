@@ -1,95 +1,95 @@
 /*!
  * @file SimpleFOC.h
  *
- * @mainpage Simple Field Oriented Control BLDC motor control library
+ * @mainpage 简单的场定向控制 BLDC 电机控制库
  *
- * @section intro_sec Introduction
+ * @section intro_sec 介绍
  *
- * Proper low-cost and low-power FOC supporting boards are very hard to find these days and even may not exist.<br> Even harder to find is a stable and simple FOC algorithm code capable of running on Arduino devices. Therefore this is an attempt to:
- * - Demystify FOC algorithm and make a robust but simple Arduino library: Arduino SimpleFOC library
- * - Develop a modular BLDC driver board: Arduino SimpleFOC shield.
+ * 目前，适合低成本和低功耗的 FOC 支持板非常难以找到，甚至可能根本不存在。<br> 更难找到的是一种稳定且简单的 FOC 算法代码，能够在 Arduino 设备上运行。因此，本库的目的是：
+ * - 破解 FOC 算法的神秘性，制作一个稳健而简单的 Arduino 库：Arduino SimpleFOC 库
+ * - 开发一个模块化的 BLDC 驱动板：Arduino SimpleFOC 盾牌。
  *
- * @section features Features
- *  - Arduino compatible: Arduino library code
- *  - Easy to setup and configure:
- *     - Easy hardware configuration
- *     - Easy tuning the control loops
- *  - Modular:
- *     - Supports as many sensors , BLDC motors and driver boards as possible
- *     - Supports as many application requirements as possible
- *  - Plug & play: Arduino SimpleFOC shield
+ * @section features 特性
+ *  - 兼容 Arduino：Arduino 库代码
+ *  - 易于设置和配置：
+ *     - 硬件配置简单
+ *     - 控制回路调节简单
+ *  - 模块化：
+ *     - 支持尽可能多的传感器、BLDC 电机和驱动板
+ *     - 支持尽可能多的应用需求
+ *  - 即插即用：Arduino SimpleFOC 盾牌
  * 
- * @section dependencies Supported Hardware
- *  - Motors 
- *    - BLDC motors
- *    - Stepper motors
- * - Drivers 
- *    - BLDC drivers
- *    - Gimbal drivers
- *    - Stepper drivers
- * - Position sensors 
- *    - Encoders
- *    - Magnetic sensors
- *    - Hall sensors
- *    - Open-loop control
- * - Microcontrollers 
+ * @section dependencies 支持的硬件
+ *  - 电机 
+ *    - BLDC 电机
+ *    - 步进电机
+ * - 驱动器 
+ *    - BLDC 驱动器
+ *    - 云台驱动器
+ *    - 步进驱动器
+ * - 位置传感器 
+ *    - 编码器
+ *    - 磁传感器
+ *    - 霍尔传感器
+ *    - 开环控制
+ * - 微控制器 
  *    - Arduino
  *    - STM32
  *    - ESP32
  *    - Teensy
  * 
- * @section example_code Example code
+ * @section example_code 示例代码
  * @code
 #include <SimpleFOC.h>
 
-//  BLDCMotor( pole_pairs )
+//  BLDCMotor( 极对数 )
 BLDCMotor motor = BLDCMotor(11);
-//  BLDCDriver( pin_pwmA, pin_pwmB, pin_pwmC, enable (optional) )
+//  BLDCDriver( pin_pwmA, pin_pwmB, pin_pwmC, enable (可选) )
 BLDCDriver3PWM driver = BLDCDriver3PWM(9, 10, 11, 8);
 //  Encoder(pin_A, pin_B, CPR)
 Encoder encoder = Encoder(2, 3, 2048);
-// channel A and B callbacks
+// 通道 A 和 B 的回调函数
 void doA(){encoder.handleA();}
 void doB(){encoder.handleB();}
 
 
 void setup() {  
-  // initialize encoder hardware
+  // 初始化编码器硬件
   encoder.init();
-  // hardware interrupt enable
+  // 启用硬件中断
   encoder.enableInterrupts(doA, doB);
-  // link the motor to the sensor
+  // 将电机与传感器连接
   motor.linkSensor(&encoder);
   
-  // power supply voltage [V]
+  // 电源电压 [V]
   driver.voltage_power_supply = 12;
-  // initialise driver hardware
+  // 初始化驱动器硬件
   driver.init();
-  // link driver
+  // 连接驱动器
   motor.linkDriver(&driver);
 
-  // set control loop type to be used
+  // 设置要使用的控制回路类型
   motor.controller = MotionControlType::velocity;
-  // initialize motor
+  // 初始化电机
   motor.init();
   
-  // align encoder and start FOC
+  // 对齐编码器并启动 FOC
   motor.initFOC();
 }
 
 void loop() {
-  // FOC algorithm function
+  // FOC 算法函数
   motor.loopFOC();
 
-  // velocity control loop function
-  // setting the target velocity or 2rad/s
+  // 速度控制回路函数
+  // 设置目标速度为 2 rad/s
   motor.move(2);
 }
  * @endcode 
  *
- * @section license License
+ * @section license 许可证
  *
- * MIT license, all text here must be included in any redistribution.
+ * MIT 许可证，任何再分发中必须包含此处的所有文本。
  *
  */
 
