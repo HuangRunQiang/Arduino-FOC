@@ -8,135 +8,137 @@
 #include "BLDCDriver.h"
 
 /**
- *  Current sensing abstract class defintion
- * Each current sensing implementation needs to extend this interface
+ *  电流感应抽象类定义
+ * 每个电流感应实现都需要扩展此接口
  */
-class CurrentSense{
+class CurrentSense {
     public:
 
     /**
-     *  Function intialising the CurrentSense class
-     *   - All the necessary intialisations of adc and sync should be implemented here
+     *  初始化CurrentSense类的函数
+     *   - 所有必要的ADC和同步初始化应在此实现
      *   
-     * @returns -  0 - for failure &  1 - for success 
+     * @returns -  0 - 失败 &  1 - 成功 
      */
     virtual int init() = 0;
     
     /**
-     * Linking the current sense with the motor driver
-     * Only necessary if synchronisation in between the two is required
+     * 将电流感应与电机驱动器链接
+     * 仅在需要两者之间的同步时才需要
      */
     void linkDriver(FOCDriver *driver);
 
-    // variables
-    bool skip_align = false; //!< variable signaling that the phase current direction should be verified during initFOC()
+    // 变量
+    bool skip_align = false; //!< 变量，指示在initFOC()期间应验证相电流方向
     
-    FOCDriver* driver = nullptr; //!< driver link
-    bool initialized = false; // true if current sense was successfully initialized   
-    void* params = 0; //!< pointer to hardware specific parameters of current sensing
-    DriverType driver_type = DriverType::Unknown; //!< driver type (BLDC or Stepper)
+    FOCDriver* driver = nullptr; //!< 驱动器链接
+    bool initialized = false; // 如果电流感应成功初始化为true   
+    void* params = 0; //!< 指向电流感应硬件特定参数的指针
+    DriverType driver_type = DriverType::Unknown; //!< 驱动器类型（BLDC或步进电机）
     
-    
-    // ADC measurement gain for each phase
-    // support for different gains for different phases of more commonly - inverted phase currents
-    // this should be automated later
-    float gain_a; //!< phase A gain
-    float gain_b; //!< phase B gain
-    float gain_c; //!< phase C gain
+    // 每个相的ADC测量增益
+    // 支持不同相的不同增益，通常是反向相电流
+    // 这应该在以后自动化
+    float gain_a; //!< 相A增益
+    float gain_b; //!< 相B增益
+    float gain_c; //!< 相C增益
 
-    float offset_ia; //!< zero current A voltage value (center of the adc reading)
-    float offset_ib; //!< zero current B voltage value (center of the adc reading)
-    float offset_ic; //!< zero current C voltage value (center of the adc reading)
+    float offset_ia; //!< 零电流A电压值（ADC读取的中心）
+    float offset_ib; //!< 零电流B电压值（ADC读取的中心）
+    float offset_ic; //!< 零电流C电压值（ADC读取的中心）
 
-    // hardware variables
-  	int pinA; //!< pin A analog pin for current measurement
-  	int pinB; //!< pin B analog pin for current measurement
-  	int pinC; //!< pin C analog pin for current measurement
+    // 硬件变量
+  	int pinA; //!< 用于电流测量的A引脚模拟引脚
+  	int pinB; //!< 用于电流测量的B引脚模拟引脚
+  	int pinC; //!< 用于电流测量的C引脚模拟引脚
 
     /**
-     * Function intended to verify if:
-     *   - phase current are oriented properly 
-     *   - if their order is the same as driver phases
+     * 验证以下内容的函数：
+     *   - 相电流是否正确定向 
+     *   - 它们的顺序是否与驱动器相同
      * 
-     * This function corrects the alignment errors if possible ans if no such thing is needed it can be left empty (return 1)
+     * 如果可能，此函数将纠正对齐错误；如果不需要，可以留空（返回1）
      * @returns -  
-            0 - failure
-            1 - success and nothing changed
-            2 - success but pins reconfigured
-            3 - success but gains inverted
-            4 - success but pins reconfigured and gains inverted
+            0 - 失败
+            1 - 成功且未更改
+            2 - 成功但引脚重新配置
+            3 - 成功但增益反转
+            4 - 成功但引脚重新配置且增益反转
      * 
-     * IMPORTANT: Default implementation provided in the CurrentSense class, but can be overriden in the child classes
+     * 重要提示：在CurrentSense类中提供了默认实现，但可以在子类中重写
      */
     virtual int driverAlign(float align_voltage, bool modulation_centered = false);
 
     /**
-     *  Function rading the phase currents a, b and c
-     *   This function will be used with the foc control throught the function 
+     *  读取相电流a、b和c的函数
+     *   此函数将与FOC控制一起使用，通过函数 
      *   CurrentSense::getFOCCurrents(electrical_angle)
-     *   - it returns current c equal to 0 if only two phase measurements available
+     *   - 如果仅有两个相的测量值，则返回电流c等于0
      * 
-     *  @return PhaseCurrent_s current values
+     *  @return PhaseCurrent_s 当前值
      */
     virtual PhaseCurrent_s getPhaseCurrents() = 0;
+    
     /**
-     * Function reading the magnitude of the current set to the motor
-     *  It returns the absolute or signed magnitude if possible
-     *  It can receive the motor electrical angle to help with calculation
-     *  This function is used with the current control  (not foc)
+     * 读取施加到电机的电流幅度的函数
+     *  如果可能，返回绝对值或带符号幅度
+     *  可以接收电机电气角度以帮助计算
+     *  此函数用于电流控制（非FOC）
      *  
-     * @param angle_el - electrical angle of the motor (optional) 
+     * @param angle_el - 电机的电气角度（可选） 
      */
     virtual float getDCCurrent(float angle_el = 0);
 
     /**
-     * Function used for FOC control, it reads the DQ currents of the motor 
-     *   It uses the function getPhaseCurrents internally
+     * 用于FOC控制的函数，读取电机的DQ电流 
+     *   内部使用函数getPhaseCurrents
      * 
-     * @param angle_el - motor electrical angle
+     * @param angle_el - 电机电气角度
      */
     DQCurrent_s getFOCCurrents(float angle_el);
 
     /**
-     * Function used for Clarke transform in FOC control
-     *   It reads the phase currents of the motor 
-     *   It returns the alpha and beta currents
+     * 用于FOC控制中的Clarke变换的函数
+     *   读取电机的相电流 
+     *   返回alpha和beta电流
      * 
-     * @param current - phase current
+     * @param current - 相电流
      */
     ABCurrent_s getABCurrents(PhaseCurrent_s current);
 
     /**
-     * Function used for Park transform in FOC control
-     *   It reads the Alpha Beta currents and electrical angle of the motor 
-     *   It returns the D and Q currents
+     * 用于FOC控制中的Park变换的函数
+     *   读取Alpha Beta电流和电机电气角度 
+     *   返回D和Q电流
      * 
-     * @param current - phase current
+     * @param current - 相电流
      */
-    DQCurrent_s getDQCurrents(ABCurrent_s current,float angle_el);
+    DQCurrent_s getDQCurrents(ABCurrent_s current, float angle_el);
 
     /**
-     * enable the current sense. default implementation does nothing, but you can
-     * override it to do something useful.
+     * 启用电流感应。默认实现不执行任何操作，但您可以
+     * 重写它以执行一些有用的操作。
      */
     virtual void enable();
 
     /**
-     * disable the current sense. default implementation does nothing, but you can
-     * override it to do something useful.
+     * 禁用电流感应。默认实现不执行任何操作，但您可以
+     * 重写它以执行一些有用的操作。
      */
     virtual void disable();
 
     /**
-     * Function used to align the current sense with the BLDC motor driver
+     * 用于将电流感应与BLDC电机驱动器对齐的函数
     */
     int alignBLDCDriver(float align_voltage, BLDCDriver* driver, bool modulation_centered);
+    
     /**
-     * Function used to align the current sense with the Stepper motor driver
+     * 用于将电流感应与步进电机驱动器对齐的函数
     */
     int alignStepperDriver(float align_voltage, StepperDriver* driver, bool modulation_centered);
+    
     /**
-     * Function used to read the average current values over N samples
+     * 用于读取N个样本平均电流值的函数
     */
     PhaseCurrent_s readAverageCurrents(int N=100);
 
