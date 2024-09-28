@@ -4,19 +4,18 @@
 #include "foc_utils.h"
 
 /** 
- * Function implementing delay() function in milliseconds 
- * - blocking function
- * - hardware specific
+ * 实现延迟函数（毫秒）
+ * - 阻塞函数
+ * - 硬件特定
 
- * @param ms number of milliseconds to wait
+ * @param ms 要等待的毫秒数
  */
 void _delay(unsigned long ms);
 
 /** 
- * Function implementing timestamp getting function in microseconds
- * hardware specific
+ * 实现获取时间戳的函数（微秒）
+ * - 硬件特定
  */
 unsigned long _micros();
-
 
 #endif

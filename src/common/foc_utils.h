@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 
-// sign function
+// 符号函数
 #define _sign(a) ( ( (a) < 0 )  ?  -1   : ( (a) > 0 ) )
 #ifndef _round
 #define _round(x) ((x)>=0?(long)((x)+0.5f):(long)((x)-0.5f))
@@ -16,7 +16,7 @@
 
 #define _swap(a, b) { auto temp = a; a = b; b = temp; }
 
-// utility defines
+// 工具定义
 #define _2_SQRT3 1.15470053838f
 #define _SQRT3 1.73205080757f
 #define _1_SQRT3 0.57735026919f
@@ -39,26 +39,26 @@
 
 #define MIN_ANGLE_DETECT_MOVEMENT (_2PI/101.0f)
 
-// dq current structure
+// dq电流结构
 struct DQCurrent_s
 {
     float d;
     float q;
 };
-// phase current structure
+// 相电流结构
 struct PhaseCurrent_s
 {
     float a;
     float b;
     float c;
 };
-// dq voltage structs
+// dq电压结构
 struct DQVoltage_s
 {
     float d;
     float q;
 };
-// alpha beta current structure
+// alpha beta电流结构
 struct ABCurrent_s
 {
     float alpha;
@@ -67,52 +67,52 @@ struct ABCurrent_s
 
 
 /**
- *  Function approximating the sine calculation by using fixed size array
- * - execution time ~40us (Arduino UNO)
+ *  使用固定大小数组近似计算正弦值的函数
+ * - 执行时间 ~40微秒 (Arduino UNO)
  *
- * @param a angle in between 0 and 2PI
+ * @param a 角度在0和2PI之间
  */
 float _sin(float a);
 /**
- * Function approximating cosine calculation by using fixed size array
- * - execution time ~50us (Arduino UNO)
+ * 使用固定大小数组近似计算余弦值的函数
+ * - 执行时间 ~50微秒 (Arduino UNO)
  *
- * @param a angle in between 0 and 2PI
+ * @param a 角度在0和2PI之间
  */
 float _cos(float a);
 /**
- * Function returning both sine and cosine of the angle in one call.
- * Internally it uses the _sin and _cos functions, but you may wish to
- * provide your own implementation which is more optimized.
+ * 返回角度的正弦值和余弦值的函数。
+ * 内部使用 _sin 和 _cos 函数，但您可以提供
+ * 更优化的自定义实现。
  */
 void _sincos(float a, float* s, float* c);
 
 /**
- * Function approximating atan2 
+ * 近似计算 atan2 的函数
  * 
  */
 float _atan2(float y, float x);
 
 /**
- * normalizing radian angle to [0,2PI]
- * @param angle - angle to be normalized
+ * 将弧度角标准化到 [0,2PI]
+ * @param angle - 要标准化的角度
  */
 float _normalizeAngle(float angle);
 
 
 /**
- * Electrical angle calculation
+ * 电气角度计算
  *
- * @param shaft_angle - shaft angle of the motor
- * @param pole_pairs - number of pole pairs
+ * @param shaft_angle - 电机的轴角
+ * @param pole_pairs - 极对数
  */
 float _electricalAngle(float shaft_angle, int pole_pairs);
 
 /**
- * Function approximating square root function
- *  - using fast inverse square root
+ * 近似计算平方根的函数
+ *  - 使用快速逆平方根
  *
- * @param value - number
+ * @param value - 数字
  */
 float _sqrtApprox(float value);
 
