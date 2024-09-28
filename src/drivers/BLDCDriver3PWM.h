@@ -8,57 +8,57 @@
 #include "hardware_api.h"
 
 /**
- 3 pwm bldc driver class
+  三相PWM无刷直流电机驱动类
 */
 class BLDCDriver3PWM: public BLDCDriver
 {
   public:
     /**
-      BLDCDriver class constructor
-      @param phA A phase pwm pin
-      @param phB B phase pwm pin
-      @param phC C phase pwm pin
-      @param en1 enable pin (optional input)
-      @param en2 enable pin (optional input)
-      @param en3 enable pin (optional input)
+      BLDCDriver类构造函数
+      @param phA A相PWM引脚
+      @param phB B相PWM引脚
+      @param phC C相PWM引脚
+      @param en1 使能引脚（可选输入）
+      @param en2 使能引脚（可选输入）
+      @param en3 使能引脚（可选输入）
     */
-    BLDCDriver3PWM(int phA,int phB,int phC, int en1 = NOT_SET, int en2 = NOT_SET, int en3 = NOT_SET);
+    BLDCDriver3PWM(int phA, int phB, int phC, int en1 = NOT_SET, int en2 = NOT_SET, int en3 = NOT_SET);
     
-    /**  Motor hardware init function */
-  	int init() override;
-    /** Motor disable function */
-  	void disable() override;
-    /** Motor enable function */
+    /** 电机硬件初始化函数 */
+    int init() override;
+    /** 电机禁用函数 */
+    void disable() override;
+    /** 电机启用函数 */
     void enable() override;
 
-    // hardware variables
-  	int pwmA; //!< phase A pwm pin number
-  	int pwmB; //!< phase B pwm pin number
-  	int pwmC; //!< phase C pwm pin number
-    int enableA_pin; //!< enable pin number
-    int enableB_pin; //!< enable pin number
-    int enableC_pin; //!< enable pin number
+    // 硬件变量
+    int pwmA; //!< A相PWM引脚编号
+    int pwmB; //!< B相PWM引脚编号
+    int pwmC; //!< C相PWM引脚编号
+    int enableA_pin; //!< 使能引脚编号
+    int enableB_pin; //!< 使能引脚编号
+    int enableC_pin; //!< 使能引脚编号
 
     /** 
-     * Set phase voltages to the hardware 
+     * 设置相电压到硬件 
      * 
-     * @param Ua - phase A voltage
-     * @param Ub - phase B voltage
-     * @param Uc - phase C voltage
+     * @param Ua - A相电压
+     * @param Ub - B相电压
+     * @param Uc - C相电压
     */
     void setPwm(float Ua, float Ub, float Uc) override;
 
     /** 
-     * Set phase voltages to the hardware
-     * > Only possible is the driver has separate enable pins for all phases!  
+     * 设置相电压到硬件
+     * > 只有在驱动器为所有相有单独的使能引脚时才可能！  
      * 
-     * @param sc - phase A state : active / disabled ( high impedance )
-     * @param sb - phase B state : active / disabled ( high impedance )
-     * @param sa - phase C state : active / disabled ( high impedance )
+     * @param sc - A相状态：激活 / 禁用（高阻抗）
+     * @param sb - B相状态：激活 / 禁用（高阻抗）
+     * @param sa - C相状态：激活 / 禁用（高阻抗）
     */
     virtual void setPhaseState(PhaseState sa, PhaseState sb, PhaseState sc) override;
+  
   private:
 };
-
 
 #endif

@@ -2,122 +2,146 @@
 
 
 
-/*!
- * @file SimpleFOC.h
- *
- * @mainpage Simple Field Oriented Control BLDC motor control library
- *
- * @section intro_sec Introduction
- *
- * Proper low-cost and low-power FOC supporting boards are very hard to find these days and even may not exist.<br> Even harder to find is a stable and simple FOC algorithm code capable of running on Arduino devices. Therefore this is an attempt to:
- * - Demystify FOC algorithm and make a robust but simple Arduino library: Arduino SimpleFOC library
- * - Develop a modular BLDC driver board: Arduino SimpleFOC shield.
- *
- * @section features Features
- *  - Arduino compatible: Arduino library code
- *  - Easy to setup and configure:
- *     - Easy hardware configuration
- *     - Easy tuning the control loops
- *  - Modular:
- *     - Supports as many sensors , BLDC motors and driver boards as possible
- *     - Supports as many application requirements as possible
- *  - Plug & play: Arduino SimpleFOC shield
- * 
- * @section dependencies Supported Hardware
- *  - Motors 
- *    - BLDC motors
- *    - Stepper motors
- * - Drivers 
- *    - BLDC drivers
- *    - Gimbal drivers
- *    - Stepper drivers
- * - Position sensors 
- *    - Encoders
- *    - Magnetic sensors
- *    - Hall sensors
- *    - Open-loop control
- * - Microcontrollers 
- *    - Arduino
- *    - STM32
- *    - ESP32
- *    - Teensy
- * 
- * @section example_code Example code
- * @code
-#include <SimpleFOC.h>
+// Function setting the duty cycle to the pwm pin (ex. analogWrite())
+// - BLDC driver - 6PWM setting
+// - hardware specific
+void _writeDutyCycle6PWM(float dc_a, float dc_b, float dc_c, PhaseState* phase_state, void* params){
+  switch(((STM32DriverParams*)params)->interface_type){
+    case _HARDWARE_6PWM:
+      // phase a
+      _setSinglePhaseState(phase_state[0], ((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], ((STM32DriverParams*)params)->channels[1]);
+      if(phase_state[0] == PhaseState::PHASE_OFF) dc_a = 0.0f;
+      _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_a, _PWM_RESOLUTION);
+      // phase b
+      _setSinglePhaseState(phase_state[1], ((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], ((STM32DriverParams*)params)->channels[3]);
+      if(phase_state[1] == PhaseState::PHASE_OFF) dc_b = 0.0f;
+      _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE*dc_b, _PWM_RESOLUTION);
+      // phase c
+      _setSinglePhaseState(phase_state[2], ((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], ((STM32DriverParams*)params)->channels[5]);
+      if(phase_state[2] == PhaseState::PHASE_OFF) dc_c = 0.0f;
+      _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], _PWM_RANGE*dc_c, _PWM_RESOLUTION);
+      break;
+    case _SOFTWARE_6PWM:
+      float dead_zone = ((STM32DriverParams*)params)->dead_zone  / 2.0f;
+      if (phase_state[0] == PhaseState::PHASE_ON || phase_state[0] == PhaseState::PHASE_HI)
+        _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _constrain(dc_a - dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
+      else
+        _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], 0.0f, _PWM_RESOLUTION);
+      if (phase_state[0] == PhaseState::PHASE_ON || phase_state[0] == PhaseState::PHASE_LO)
+        _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _constrain(dc_a + dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
+      else
+        _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], 0.0f, _PWM_RESOLUTION);
 
-//  BLDCMotor( pole_pairs )
-BLDCMotor motor = BLDCMotor(11);
-//  BLDCDriver( pin_pwmA, pin_pwmB, pin_pwmC, enable (optional) )
-BLDCDriver3PWM driver = BLDCDriver3PWM(9, 10, 11, 8);
-//  Encoder(pin_A, pin_B, CPR)
-Encoder encoder = Encoder(2, 3, 2048);
-// channel A and B callbacks
-void doA(){encoder.handleA();}
-void doB(){encoder.handleB();}
+      if (phase_state[1] == PhaseState::PHASE_ON || phase_state[1] == PhaseState::PHASE_HI)
+        _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _constrain(dc_b - dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
+      else
+        _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], 0.0f, _PWM_RESOLUTION);
+      if (phase_state[1] == PhaseState::PHASE_ON || phase_state[1] == PhaseState::PHASE_LO)
+        _setPwm(((STM32DriverParams*)params)->timers[3], ((STM32DriverParams*)params)->channels[3], _constrain(dc_b + dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
+      else
+        _setPwm(((STM32DriverParams*)params)->timers[3], ((STM32DriverParams*)params)->channels[3], 0.0f, _PWM_RESOLUTION);
 
-
-void setup() {  
-  // initialize encoder hardware
-  encoder.init();
-  // hardware interrupt enable
-  encoder.enableInterrupts(doA, doB);
-  // link the motor to the sensor
-  motor.linkSensor(&encoder);
-  
-  // power supply voltage [V]
-  driver.voltage_power_supply = 12;
-  // initialise driver hardware
-  driver.init();
-  // link driver
-  motor.linkDriver(&driver);
-
-  // set control loop type to be used
-  motor.controller = MotionControlType::velocity;
-  // initialize motor
-  motor.init();
-  
-  // align encoder and start FOC
-  motor.initFOC();
+      if (phase_state[2] == PhaseState::PHASE_ON || phase_state[2] == PhaseState::PHASE_HI)
+        _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], _constrain(dc_c - dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
+      else
+        _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], 0.0f, _PWM_RESOLUTION);
+      if (phase_state[2] == PhaseState::PHASE_ON || phase_state[2] == PhaseState::PHASE_LO)
+        _setPwm(((STM32DriverParams*)params)->timers[5], ((STM32DriverParams*)params)->channels[5], _constrain(dc_c + dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
+      else
+        _setPwm(((STM32DriverParams*)params)->timers[5], ((STM32DriverParams*)params)->channels[5], 0.0f, _PWM_RESOLUTION);
+      break;
+  }
+  _UNUSED(phase_state);
 }
 
-void loop() {
-  // FOC algorithm function
-  motor.loopFOC();
 
-  // velocity control loop function
-  // setting the target velocity or 2rad/s
-  motor.move(2);
+
+#ifdef SIMPLEFOC_STM32_DEBUG
+
+int getTimerNumber(int timerIndex) {
+  #if defined(TIM1_BASE)
+    if (timerIndex==TIMER1_INDEX) return 1;
+  #endif
+  #if defined(TIM2_BASE)
+    if (timerIndex==TIMER2_INDEX) return 2;
+  #endif
+  #if defined(TIM3_BASE)
+    if (timerIndex==TIMER3_INDEX) return 3;
+  #endif
+  #if defined(TIM4_BASE)
+    if (timerIndex==TIMER4_INDEX) return 4;
+  #endif
+  #if defined(TIM5_BASE)
+    if (timerIndex==TIMER5_INDEX) return 5;
+  #endif
+  #if defined(TIM6_BASE)
+    if (timerIndex==TIMER6_INDEX) return 6;
+  #endif
+  #if defined(TIM7_BASE)
+    if (timerIndex==TIMER7_INDEX) return 7;
+  #endif
+  #if defined(TIM8_BASE)
+    if (timerIndex==TIMER8_INDEX) return 8;
+  #endif
+  #if defined(TIM9_BASE)
+    if (timerIndex==TIMER9_INDEX) return 9;
+  #endif
+  #if defined(TIM10_BASE)
+    if (timerIndex==TIMER10_INDEX) return 10;
+  #endif
+  #if defined(TIM11_BASE)
+    if (timerIndex==TIMER11_INDEX) return 11;
+  #endif
+  #if defined(TIM12_BASE)
+    if (timerIndex==TIMER12_INDEX) return 12;
+  #endif
+  #if defined(TIM13_BASE)
+    if (timerIndex==TIMER13_INDEX) return 13;
+  #endif
+  #if defined(TIM14_BASE)
+    if (timerIndex==TIMER14_INDEX) return 14;
+  #endif
+  #if defined(TIM15_BASE)
+    if (timerIndex==TIMER15_INDEX) return 15;
+  #endif
+  #if defined(TIM16_BASE)
+    if (timerIndex==TIMER16_INDEX) return 16;
+  #endif
+  #if defined(TIM17_BASE)
+    if (timerIndex==TIMER17_INDEX) return 17;
+  #endif
+  #if defined(TIM18_BASE)
+    if (timerIndex==TIMER18_INDEX) return 18;
+  #endif
+  #if defined(TIM19_BASE)
+    if (timerIndex==TIMER19_INDEX) return 19;
+  #endif
+  #if defined(TIM20_BASE)
+    if (timerIndex==TIMER20_INDEX) return 20;
+  #endif
+  #if defined(TIM21_BASE)
+    if (timerIndex==TIMER21_INDEX) return 21;
+  #endif
+  #if defined(TIM22_BASE)
+    if (timerIndex==TIMER22_INDEX) return 22;
+  #endif
+  return -1;
 }
- * @endcode 
- *
- * @section license License
- *
- * MIT license, all text here must be included in any redistribution.
- *
- */
 
-#ifndef SIMPLEFOC_H
-#define SIMPLEFOC_H
 
-#include "BLDCMotor.h"
-#include "StepperMotor.h"
-#include "sensors/Encoder.h"
-#include "sensors/MagneticSensorSPI.h"
-#include "sensors/MagneticSensorI2C.h"
-#include "sensors/MagneticSensorAnalog.h"
-#include "sensors/MagneticSensorPWM.h"
-#include "sensors/HallSensor.h"
-#include "sensors/GenericSensor.h"
-#include "drivers/BLDCDriver3PWM.h"
-#include "drivers/BLDCDriver6PWM.h"
-#include "drivers/StepperDriver4PWM.h"
-#include "drivers/StepperDriver2PWM.h"
-#include "current_sense/InlineCurrentSense.h"
-#include "current_sense/LowsideCurrentSense.h"
-#include "current_sense/GenericCurrentSense.h"
-#include "communication/Commander.h"
-#include "communication/StepDirListener.h"
-#include "communication/SimpleFOCDebug.h"
-
-#endif
+void printTimerCombination(int numPins, PinMap* timers[], int score) {
+  for (int i=0; i<numPins; i++) {
+    if (timers[i] == NP)
+      SimpleFOCDebug::print("NP");
+    else {
+      SimpleFOCDebug::print("TIM");
+      SimpleFOCDebug::print(getTimerNumber(get_timer_index((TIM_TypeDef*)timers[i]->peripheral)));
+      SimpleFOCDebug::print("-CH");
+      SimpleFOCDebug::print(STM_PIN_CHANNEL(timers[i]->function));
+      if (STM_PIN_INVERTED(timers[i]->function))
+        SimpleFOCDebug::print("N");
+    }
+    SimpleFOCDebug::print(" ");
+  }
+  SimpleFOCDebug::println("score: ", score);
+}

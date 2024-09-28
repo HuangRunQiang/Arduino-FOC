@@ -6,17 +6,13 @@
 
 #define SIMPLEFOC_STM32_DEBUG
 #pragma message("")
-#pragma message("SimpleFOC: compiling for STM32")
+#pragma message("SimpleFOC: 正在为 STM32 编译")
 #pragma message("")
-
 
 #ifdef SIMPLEFOC_STM32_DEBUG
 void printTimerCombination(int numPins, PinMap* timers[], int score);
 int getTimerNumber(int timerIndex);
 #endif
-
-
-
 
 #ifndef SIMPLEFOC_STM32_MAX_PINTIMERSUSED
 #define SIMPLEFOC_STM32_MAX_PINTIMERSUSED 12
@@ -24,10 +20,8 @@ int getTimerNumber(int timerIndex);
 int numTimerPinsUsed;
 PinMap* timerPinsUsed[SIMPLEFOC_STM32_MAX_PINTIMERSUSED];
 
-
-
 bool _getPwmState(void* params) {
-  // assume timers are synchronized and that there's at least one timer
+  // 假设定时器已同步，并且至少有一个定时器
   HardwareTimer* pHT = ((STM32DriverParams*)params)->timers[0];
   TIM_HandleTypeDef* htim = pHT->getHandle();
   
@@ -36,11 +30,10 @@ bool _getPwmState(void* params) {
   return dir;
 }
 
-
-// setting pwm to hardware pin - instead analogWrite()
+// 将 PWM 设置为硬件引脚 - 而不是 analogWrite()
 void _setPwm(HardwareTimer *HT, uint32_t channel, uint32_t value, int resolution)
 {
-  // TODO - remove commented code
+  // TODO - 移除注释代码
   // PinName pin = digitalPinToPinName(ulPin);
   // TIM_TypeDef *Instance = (TIM_TypeDef *)pinmap_peripheral(pin, PinMap_PWM);
   // uint32_t index = get_timer_index(Instance);
@@ -48,9 +41,6 @@ void _setPwm(HardwareTimer *HT, uint32_t channel, uint32_t value, int resolution
   
   HT->setCaptureCompare(channel, value, (TimerCompareFormat_t)resolution);
 }
-
-
-
 
 int getLLChannel(PinMap* timer) {
 #if defined(TIM_CCER_CC1NE)
@@ -78,14 +68,10 @@ int getLLChannel(PinMap* timer) {
   return -1;
 }
 
-
-
-
-
-// init pin pwm
+// 初始化引脚 PWM
 HardwareTimer* _initPinPWM(uint32_t PWM_freq, PinMap* timer) {
-  // sanity check
-  if (timer==NP)
+  // 合理性检查
+  if (timer == NP)
     return NP;
   uint32_t index = get_timer_index((TIM_TypeDef*)timer->peripheral);
   bool init = false;
@@ -102,32 +88,26 @@ HardwareTimer* _initPinPWM(uint32_t PWM_freq, PinMap* timer) {
   if (init)
     HT->setOverflow(PWM_freq, HERTZ_FORMAT);
   HT->setMode(channel, TIMER_OUTPUT_COMPARE_PWM1, timer->pin);
-  #if SIMPLEFOC_PWM_ACTIVE_HIGH==false
+  #if SIMPLEFOC_PWM_ACTIVE_HIGH == false
   LL_TIM_OC_SetPolarity(HT->getHandle()->Instance, getLLChannel(timer), LL_TIM_OCPOLARITY_LOW);
   #endif
 #ifdef SIMPLEFOC_STM32_DEBUG
-  SIMPLEFOC_DEBUG("STM32-DRV: Configuring high timer ", (int)getTimerNumber(get_timer_index(HardwareTimer_Handle[index]->handle.Instance)));
-  SIMPLEFOC_DEBUG("STM32-DRV: Configuring high channel ", (int)channel);
+  SIMPLEFOC_DEBUG("STM32-DRV: 配置高定时器 ", (int)getTimerNumber(get_timer_index(HardwareTimer_Handle[index]->handle.Instance)));
+  SIMPLEFOC_DEBUG("STM32-DRV: 配置高通道 ", (int)channel);
 #endif
   return HT;
 }
 
-
-
-
-
-
-
-// init high side pin
+// 初始化高侧引脚
 HardwareTimer* _initPinPWMHigh(uint32_t PWM_freq, PinMap* timer) {
   HardwareTimer* HT = _initPinPWM(PWM_freq, timer);
-  #if SIMPLEFOC_PWM_HIGHSIDE_ACTIVE_HIGH==false && SIMPLEFOC_PWM_ACTIVE_HIGH==true
+  #if SIMPLEFOC_PWM_HIGHSIDE_ACTIVE_HIGH == false && SIMPLEFOC_PWM_ACTIVE_HIGH == true
   LL_TIM_OC_SetPolarity(HT->getHandle()->Instance, getLLChannel(timer), LL_TIM_OCPOLARITY_LOW);
   #endif
   return HT;
 }
 
-// init low side pin
+// 初始化低侧引脚
 HardwareTimer* _initPinPWMLow(uint32_t PWM_freq, PinMap* timer)
 {
   uint32_t index = get_timer_index((TIM_TypeDef*)timer->peripheral);
@@ -144,24 +124,22 @@ HardwareTimer* _initPinPWMLow(uint32_t PWM_freq, PinMap* timer)
   uint32_t channel = STM_PIN_CHANNEL(timer->function);
 
 #ifdef SIMPLEFOC_STM32_DEBUG
-  SIMPLEFOC_DEBUG("STM32-DRV: Configuring low timer ", (int)getTimerNumber(get_timer_index(HardwareTimer_Handle[index]->handle.Instance)));
-  SIMPLEFOC_DEBUG("STM32-DRV: Configuring low channel ", (int)channel);
+  SIMPLEFOC_DEBUG("STM32-DRV: 配置低定时器 ", (int)getTimerNumber(get_timer_index(HardwareTimer_Handle[index]->handle.Instance)));
+  SIMPLEFOC_DEBUG("STM32-DRV: 配置低通道 ", (int)channel);
 #endif
 
   HT->pause();
   if (init)
     HT->setOverflow(PWM_freq, HERTZ_FORMAT);
-  // sets internal fields of HT, but we can't set polarity here
+  // 设置 HT 的内部字段，但我们不能在这里设置极性
   HT->setMode(channel, TIMER_OUTPUT_COMPARE_PWM2, timer->pin);
-  #if SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH==false
+  #if SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH == false
   LL_TIM_OC_SetPolarity(HT->getHandle()->Instance, getLLChannel(timer), LL_TIM_OCPOLARITY_LOW);
   #endif
   return HT;
 }
 
-
-
-// align the timers to end the init
+// 对齐定时器以结束初始化
 void _alignPWMTimers(HardwareTimer *HT1, HardwareTimer *HT2, HardwareTimer *HT3)
 {
   HT1->pause();
@@ -175,10 +153,7 @@ void _alignPWMTimers(HardwareTimer *HT1, HardwareTimer *HT2, HardwareTimer *HT3)
   HT3->resume();
 }
 
-
-
-
-// align the timers to end the init
+// 对齐定时器以结束初始化
 void _alignPWMTimers(HardwareTimer *HT1, HardwareTimer *HT2, HardwareTimer *HT3, HardwareTimer *HT4)
 {
   HT1->pause();
@@ -196,159 +171,159 @@ void _alignPWMTimers(HardwareTimer *HT1, HardwareTimer *HT2, HardwareTimer *HT3,
 }
 
 
-// align the timers to end the init
+// 对定时器进行对齐以结束初始化
 void _stopTimers(HardwareTimer **timers_to_stop, int timer_num)
 {
-  // TODO - stop each timer only once
-  // stop timers
-  for (int i=0; i < timer_num; i++) {
-    if(timers_to_stop[i] == NP) return;
+  // TODO - 仅停止每个定时器一次
+  // 停止定时器
+  for (int i = 0; i < timer_num; i++) {
+    if (timers_to_stop[i] == NP) return;
     timers_to_stop[i]->pause();
     timers_to_stop[i]->refresh();
     #ifdef SIMPLEFOC_STM32_DEBUG
-      SIMPLEFOC_DEBUG("STM32-DRV: Stopping timer ", getTimerNumber(get_timer_index(timers_to_stop[i]->getHandle()->Instance)));
+      SIMPLEFOC_DEBUG("STM32-DRV: 停止定时器 ", getTimerNumber(get_timer_index(timers_to_stop[i]->getHandle()->Instance)));
     #endif
   }
 }
 
-
 #if defined(STM32G4xx)
-// function finds the appropriate timer source trigger for the master/slave timer combination
-// returns -1 if no trigger source is found
-// currently supports the master timers to be from TIM1 to TIM4 and TIM8
-int _getInternalSourceTrigger(HardwareTimer* master, HardwareTimer* slave) { // put master and slave in temp variables to avoid arrows
+// 函数查找主/从定时器组合的适当定时器源触发
+// 如果未找到触发源则返回 -1
+// 当前支持主定时器为 TIM1 到 TIM4 和 TIM8
+int _getInternalSourceTrigger(HardwareTimer* master, HardwareTimer* slave) {
+  // 将主定时器和从定时器放入临时变量以避免箭头
   TIM_TypeDef *TIM_master = master->getHandle()->Instance;
   #if defined(TIM1) && defined(LL_TIM_TS_ITR0)
-    if (TIM_master == TIM1) return LL_TIM_TS_ITR0;// return TIM_TS_ITR0;
+    if (TIM_master == TIM1) return LL_TIM_TS_ITR0; // 返回 TIM_TS_ITR0;
   #endif
-  #if defined(TIM2) &&  defined(LL_TIM_TS_ITR1)
-    else if (TIM_master == TIM2) return LL_TIM_TS_ITR1;//return TIM_TS_ITR1;
+  #if defined(TIM2) && defined(LL_TIM_TS_ITR1)
+    else if (TIM_master == TIM2) return LL_TIM_TS_ITR1; // 返回 TIM_TS_ITR1;
   #endif
-  #if defined(TIM3) &&  defined(LL_TIM_TS_ITR2)
-    else if (TIM_master == TIM3) return LL_TIM_TS_ITR2;//return TIM_TS_ITR2;
+  #if defined(TIM3) && defined(LL_TIM_TS_ITR2)
+    else if (TIM_master == TIM3) return LL_TIM_TS_ITR2; // 返回 TIM_TS_ITR2;
   #endif  
-  #if defined(TIM4) &&  defined(LL_TIM_TS_ITR3)
-    else if (TIM_master == TIM4) return LL_TIM_TS_ITR3;//return TIM_TS_ITR3;
+  #if defined(TIM4) && defined(LL_TIM_TS_ITR3)
+    else if (TIM_master == TIM4) return LL_TIM_TS_ITR3; // 返回 TIM_TS_ITR3;
   #endif 
-  #if defined(TIM5) &&  defined(LL_TIM_TS_ITR4)
-    else if (TIM_master == TIM5) return LL_TIM_TS_ITR4;//return TIM_TS_ITR4;
+  #if defined(TIM5) && defined(LL_TIM_TS_ITR4)
+    else if (TIM_master == TIM5) return LL_TIM_TS_ITR4; // 返回 TIM_TS_ITR4;
   #endif
-  #if defined(TIM8) &&  defined(LL_TIM_TS_ITR5)
-    else if (TIM_master == TIM8) return LL_TIM_TS_ITR5;//return TIM_TS_ITR5;
+  #if defined(TIM8) && defined(LL_TIM_TS_ITR5)
+    else if (TIM_master == TIM8) return LL_TIM_TS_ITR5; // 返回 TIM_TS_ITR5;
   #endif
   return -1;
 }
 #elif defined(STM32F4xx) || defined(STM32F1xx) || defined(STM32L4xx) || defined(STM32F7xx)
 
-// function finds the appropriate timer source trigger for the master/slave timer combination
-// returns -1 if no trigger source is found
-// currently supports the master timers to be from TIM1 to TIM4 and TIM8
+// 函数查找主/从定时器组合的适当定时器源触发
+// 如果未找到触发源则返回 -1
+// 当前支持主定时器为 TIM1 到 TIM4 和 TIM8
 int _getInternalSourceTrigger(HardwareTimer* master, HardwareTimer* slave) {
-  // put master and slave in temp variables to avoid arrows
+  // 将主定时器和从定时器放入临时变量以避免箭头
   TIM_TypeDef *TIM_master = master->getHandle()->Instance;
   TIM_TypeDef *TIM_slave = slave->getHandle()->Instance;
   #if defined(TIM1) && defined(LL_TIM_TS_ITR0)
     if (TIM_master == TIM1){
       #if defined(TIM2)
-      if(TIM_slave == TIM2) return LL_TIM_TS_ITR0;
+      if (TIM_slave == TIM2) return LL_TIM_TS_ITR0;
       #endif
       #if defined(TIM3)
-      else if(TIM_slave == TIM3) return LL_TIM_TS_ITR0;
+      else if (TIM_slave == TIM3) return LL_TIM_TS_ITR0;
       #endif
       #if defined(TIM4)
-      else if(TIM_slave == TIM4) return LL_TIM_TS_ITR0;
+      else if (TIM_slave == TIM4) return LL_TIM_TS_ITR0;
       #endif
       #if defined(TIM8)
-      else if(TIM_slave == TIM8) return LL_TIM_TS_ITR0;
+      else if (TIM_slave == TIM8) return LL_TIM_TS_ITR0;
       #endif
     }
   #endif
-  #if defined(TIM2) &&  defined(LL_TIM_TS_ITR1)
+  #if defined(TIM2) && defined(LL_TIM_TS_ITR1)
     else if (TIM_master == TIM2){
       #if defined(TIM1)
-      if(TIM_slave == TIM1) return LL_TIM_TS_ITR1;
+      if (TIM_slave == TIM1) return LL_TIM_TS_ITR1;
       #endif
       #if defined(TIM3)
-      else if(TIM_slave == TIM3) return LL_TIM_TS_ITR1;
+      else if (TIM_slave == TIM3) return LL_TIM_TS_ITR1;
       #endif
       #if defined(TIM4)
-      else if(TIM_slave == TIM4) return LL_TIM_TS_ITR1;
+      else if (TIM_slave == TIM4) return LL_TIM_TS_ITR1;
       #endif
       #if defined(TIM8)
-      else if(TIM_slave == TIM8) return LL_TIM_TS_ITR1;
+      else if (TIM_slave == TIM8) return LL_TIM_TS_ITR1;
       #endif
       #if defined(TIM5)
-      else if(TIM_slave == TIM5) return LL_TIM_TS_ITR0;
+      else if (TIM_slave == TIM5) return LL_TIM_TS_ITR0;
       #endif
     }
   #endif
-  #if defined(TIM3) &&  defined(LL_TIM_TS_ITR2)
+  #if defined(TIM3) && defined(LL_TIM_TS_ITR2)
     else if (TIM_master == TIM3){
       #if defined(TIM1)
-      if(TIM_slave == TIM1) return LL_TIM_TS_ITR2;
+      if (TIM_slave == TIM1) return LL_TIM_TS_ITR2;
       #endif
       #if defined(TIM2)
-      else if(TIM_slave == TIM2) return LL_TIM_TS_ITR2;
+      else if (TIM_slave == TIM2) return LL_TIM_TS_ITR2;
       #endif
       #if defined(TIM4)
-      else if(TIM_slave == TIM4) return LL_TIM_TS_ITR2;
+      else if (TIM_slave == TIM4) return LL_TIM_TS_ITR2;
       #endif
       #if defined(TIM5)
-      else if(TIM_slave == TIM5) return LL_TIM_TS_ITR1;
+      else if (TIM_slave == TIM5) return LL_TIM_TS_ITR1;
       #endif
     }
   #endif  
-  #if defined(TIM4) &&  defined(LL_TIM_TS_ITR3)
+  #if defined(TIM4) && defined(LL_TIM_TS_ITR3)
     else if (TIM_master == TIM4){
       #if defined(TIM1)
-      if(TIM_slave == TIM1) return LL_TIM_TS_ITR3;
+      if (TIM_slave == TIM1) return LL_TIM_TS_ITR3;
       #endif
       #if defined(TIM2)
-      else if(TIM_slave == TIM2) return LL_TIM_TS_ITR3;
+      else if (TIM_slave == TIM2) return LL_TIM_TS_ITR3;
       #endif
       #if defined(TIM3)
-      else if(TIM_slave == TIM3) return LL_TIM_TS_ITR3;
+      else if (TIM_slave == TIM3) return LL_TIM_TS_ITR3;
       #endif
       #if defined(TIM8)
-      else if(TIM_slave == TIM8) return LL_TIM_TS_ITR2;
+      else if (TIM_slave == TIM8) return LL_TIM_TS_ITR2;
       #endif
       #if defined(TIM5)
-      else if(TIM_slave == TIM5) return LL_TIM_TS_ITR1;
+      else if (TIM_slave == TIM5) return LL_TIM_TS_ITR1;
       #endif
     }
   #endif 
   #if defined(TIM5) 
     else if (TIM_master == TIM5){
-      #if !defined(STM32L4xx) // only difference between F4,F1 and L4
+      #if !defined(STM32L4xx) // F4,F1 和 L4 之间的唯一区别
       #if defined(TIM1)
-      if(TIM_slave == TIM1) return LL_TIM_TS_ITR0;
+      if (TIM_slave == TIM1) return LL_TIM_TS_ITR0;
       #endif
       #if defined(TIM3)
-      else if(TIM_slave == TIM3) return LL_TIM_TS_ITR2;
+      else if (TIM_slave == TIM3) return LL_TIM_TS_ITR2;
       #endif
       #endif
       #if defined(TIM8)
-      if(TIM_slave == TIM8) return LL_TIM_TS_ITR3;
+      if (TIM_slave == TIM8) return LL_TIM_TS_ITR3;
       #endif
     }
   #endif
   #if defined(TIM8)
     else if (TIM_master == TIM8){
       #if defined(TIM2)
-      if(TIM_slave==TIM2) return LL_TIM_TS_ITR1;
+      if (TIM_slave == TIM2) return LL_TIM_TS_ITR1;
       #endif
       #if defined(TIM4)
-      else if(TIM_slave == TIM4) return LL_TIM_TS_ITR3;
+      else if (TIM_slave == TIM4) return LL_TIM_TS_ITR3;
       #endif
       #if defined(TIM5)
-      else if(TIM_slave == TIM5) return LL_TIM_TS_ITR3;
+      else if (TIM_slave == TIM5) return LL_TIM_TS_ITR3;
       #endif
     }
   #endif
-  return -1; // combination not supported
+  return -1; // 不支持的组合
 }
 #else
-// Alignment not supported for this architecture
+// 此架构不支持对齐
 int _getInternalSourceTrigger(HardwareTimer* master, HardwareTimer* slave) {
   return -1;
 }
@@ -357,7 +332,7 @@ int _getInternalSourceTrigger(HardwareTimer* master, HardwareTimer* slave) {
 void syncTimerFrequency(long pwm_frequency, HardwareTimer *timers[], uint8_t num_timers) {
   uint32_t max_frequency = 0;
   uint32_t min_frequency = UINT32_MAX;
-  for (size_t i=0; i<num_timers; i++) {
+  for (size_t i = 0; i < num_timers; i++) {
     uint32_t freq = timers[i]->getTimerClkFreq();
     if (freq > max_frequency) {
       max_frequency = freq;
@@ -365,16 +340,16 @@ void syncTimerFrequency(long pwm_frequency, HardwareTimer *timers[], uint8_t num
       min_frequency = freq; 
     }
   }
-  if (max_frequency==min_frequency) return;
-  uint32_t overflow_value = min_frequency/pwm_frequency;
-  for (size_t i=0; i<num_timers; i++) {
-    uint32_t prescale_factor = timers[i]->getTimerClkFreq()/min_frequency;
+  if (max_frequency == min_frequency) return;
+  uint32_t overflow_value = min_frequency / pwm_frequency;
+  for (size_t i = 0; i < num_timers; i++) {
+    uint32_t prescale_factor = timers[i]->getTimerClkFreq() / min_frequency;
     #ifdef SIMPLEFOC_DEBUG
-      SIMPLEFOC_DEBUG("STM32-DRV: Setting prescale to ", (float)prescale_factor);
-      SIMPLEFOC_DEBUG("STM32-DRV: Setting Overflow to ", (float)overflow_value);
+      SIMPLEFOC_DEBUG("STM32-DRV: 设置预分频为 ", (float)prescale_factor);
+      SIMPLEFOC_DEBUG("STM32-DRV: 设置溢出为 ", (float)overflow_value);
     #endif
     timers[i]->setPrescaleFactor(prescale_factor);
-    timers[i]->setOverflow(overflow_value,TICK_FORMAT);
+    timers[i]->setOverflow(overflow_value, TICK_FORMAT);
     timers[i]->refresh();
   }
 }
@@ -383,12 +358,12 @@ void _alignTimersNew() {
   int numTimers = 0;
   HardwareTimer *timers[numTimerPinsUsed];
 
-  // find the timers used
-  for (int i=0; i<numTimerPinsUsed; i++) {
+  // 查找使用的定时器
+  for (int i = 0; i < numTimerPinsUsed; i++) {
     uint32_t index = get_timer_index((TIM_TypeDef*)timerPinsUsed[i]->peripheral);
     HardwareTimer *timer = (HardwareTimer *)(HardwareTimer_Handle[index]->__this);
     bool found = false;
-    for (int j=0; j<numTimers; j++) {
+    for (int j = 0; j < numTimers; j++) {
       if (timers[j] == timer) {
         found = true;
         break;
@@ -399,108 +374,106 @@ void _alignTimersNew() {
   }
 
   #ifdef SIMPLEFOC_STM32_DEBUG
-    SIMPLEFOC_DEBUG("STM32-DRV: Syncronising timers! Timer no. ", numTimers);
+    SIMPLEFOC_DEBUG("STM32-DRV: 同步定时器! 定时器数量 ", numTimers);
   #endif
 
-  // see if there is more then 1 timers used for the pwm
-  // if yes, try to align timers
-  if(numTimers > 1){
-    // find the master timer
+  // 查看是否使用了超过 1 个定时器进行 PWM
+  // 如果是，尝试对齐定时器
+  if (numTimers > 1) {
+    // 查找主定时器
     int16_t master_index = -1;
     int triggerEvent = -1;
-    for (int i=0; i<numTimers; i++) {
-      // check if timer can be master
-      if(IS_TIM_MASTER_INSTANCE(timers[i]->getHandle()->Instance)) {
-        // check if timer already configured in TRGO update mode (used for ADC triggering)
-        // in that case we should not change its TRGO configuration
-        if(timers[i]->getHandle()->Instance->CR2 & LL_TIM_TRGO_UPDATE) continue;
-        // check if the timer has the supported internal trigger for other timers
-        for (int slave_i=0; slave_i<numTimers; slave_i++) {
-          if (i==slave_i) continue; // skip self
-          // check if it has the supported internal trigger
-          triggerEvent = _getInternalSourceTrigger(timers[i],timers[slave_i]); 
-          if(triggerEvent == -1) break; // not supported keep searching
+    for (int i = 0; i < numTimers; i++) {
+      // 检查定时器是否可以作为主定时器
+      if (IS_TIM_MASTER_INSTANCE(timers[i]->getHandle()->Instance)) {
+        // 检查定时器是否已配置为 TRGO 更新模式（用于 ADC 触发）
+        // 在这种情况下，我们不应更改其 TRGO 配置
+        if (timers[i]->getHandle()->Instance->CR2 & LL_TIM_TRGO_UPDATE) continue;
+        // 检查定时器是否具有支持的内部触发器以触发其他定时器
+        for (int slave_i = 0; slave_i < numTimers; slave_i++) {
+          if (i == slave_i) continue; // 跳过自身
+          // 检查是否具有支持的内部触发器
+          triggerEvent = _getInternalSourceTrigger(timers[i], timers[slave_i]); 
+          if (triggerEvent == -1) break; // 不支持，继续搜索
         }
-        if(triggerEvent == -1) continue; // cannot be master, keep searching
-        // otherwise the master has been found, remember the index
-        master_index = i; // found the master timer
+        if (triggerEvent == -1) continue; // 不能成为主定时器，继续搜索
+        // 否则，主定时器已找到，记住索引
+        master_index = i; // 找到主定时器
         break;
       }
     }
-    
 
-    // if no master timer found do not perform alignment
+    // 如果未找到主定时器，则不执行对齐
     if (master_index == -1) {
       #ifdef SIMPLEFOC_STM32_DEBUG
-        SIMPLEFOC_DEBUG("STM32-DRV: ERR: No master timer found, cannot align timers!");
+        SIMPLEFOC_DEBUG("STM32-DRV: 错误: 未找到主定时器，无法对齐定时器!");
       #endif
-    }else{
+    } else {
       #ifdef SIMPLEFOC_STM32_DEBUG
-        SIMPLEFOC_DEBUG("STM32-DRV: Aligning PWM to master timer: ",  getTimerNumber(get_timer_index(timers[master_index]->getHandle()->Instance)));
+        SIMPLEFOC_DEBUG("STM32-DRV: 将 PWM 对齐到主定时器: ", getTimerNumber(get_timer_index(timers[master_index]->getHandle()->Instance)));
       #endif
-      // make the master timer generate ITRGx event
-      // if it was already configured in slave mode
-      LL_TIM_SetSlaveMode(timers[master_index]->getHandle()->Instance, LL_TIM_SLAVEMODE_DISABLED );
-      // Configure the master  timer to send a trigger signal on enable 
+      // 使主定时器生成 ITRGx 事件
+      // 如果它已在从模式下配置
+      LL_TIM_SetSlaveMode(timers[master_index]->getHandle()->Instance, LL_TIM_SLAVEMODE_DISABLED);
+      // 配置主定时器在启用时发送触发信号
       LL_TIM_SetTriggerOutput(timers[master_index]->getHandle()->Instance, LL_TIM_TRGO_ENABLE);
-      // configure other timers to get the input trigger from the master timer
-      for (int slave_index=0; slave_index < numTimers; slave_index++) {
+      // 配置其他定时器以从主定时器接收输入触发
+      for (int slave_index = 0; slave_index < numTimers; slave_index++) {
         if (slave_index == master_index)
           continue;
-        // Configure the slave timer to be triggered by the master enable signal
+        // 配置从定时器以由主定时器的启用信号触发
         LL_TIM_SetTriggerInput(timers[slave_index]->getHandle()->Instance, _getInternalSourceTrigger(timers[master_index], timers[slave_index]));
         LL_TIM_SetSlaveMode(timers[slave_index]->getHandle()->Instance, LL_TIM_SLAVEMODE_TRIGGER);
       }
     }
   }
 
-  // enable timer clock
-  for (int i=0; i<numTimers; i++) {
+  // 启用定时器时钟
+  for (int i = 0; i < numTimers; i++) {
     timers[i]->pause();
     // timers[i]->refresh();
     #ifdef SIMPLEFOC_STM32_DEBUG
-      SIMPLEFOC_DEBUG("STM32-DRV: Restarting timer ", getTimerNumber(get_timer_index(timers[i]->getHandle()->Instance)));
+      SIMPLEFOC_DEBUG("STM32-DRV: 重启定时器 ", getTimerNumber(get_timer_index(timers[i]->getHandle()->Instance)));
     #endif
   }
 
-  for (int i=0; i<numTimers; i++) {
+  for (int i = 0; i < numTimers; i++) {
     timers[i]->resume();
   }
-
 }
 
 
 
-// align the timers to end the init
+
+// 对定时器进行对齐以结束初始化
 void _startTimers(HardwareTimer **timers_to_start, int timer_num)
 {
-  // // TODO - start each timer only once
-  // // start timers
+  // // TODO - 仅启动每个定时器一次
+  // // 启动定时器
   // for (int i=0; i < timer_num; i++) {
   //   if(timers_to_start[i] == NP) return;
   //   timers_to_start[i]->resume();
   //   #ifdef SIMPLEFOC_STM32_DEBUG
-  //     SIMPLEFOC_DEBUG("STM32-DRV: Starting timer ", getTimerNumber(get_timer_index(timers_to_start[i]->getHandle()->Instance)));
+  //     SIMPLEFOC_DEBUG("STM32-DRV: 启动定时器 ", getTimerNumber(get_timer_index(timers_to_start[i]->getHandle()->Instance)));
   //   #endif
   // }
   _alignTimersNew();
 }
 
-
-// configure hardware 6pwm for a complementary pair of channels
+// 为一对互补通道配置硬件6PWM
 STM32DriverParams* _initHardware6PWMPair(long PWM_freq, float dead_zone, PinMap* pinH, PinMap* pinL, STM32DriverParams* params, int paramsPos) {
-  // sanity check
+  // 合理性检查
   if (pinH==NP || pinL==NP)
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
   
-#if defined(STM32L0xx) // L0 boards dont have hardware 6pwm interface 
-  return SIMPLEFOC_DRIVER_INIT_FAILED; // return nothing
+#if defined(STM32L0xx) // L0板不支持硬件6PWM接口 
+  return SIMPLEFOC_DRIVER_INIT_FAILED; // 返回失败
 #endif
 
   uint32_t channel1 = STM_PIN_CHANNEL(pinH->function);
   uint32_t channel2 = STM_PIN_CHANNEL(pinL->function);
 
-  // more sanity check
+  // 更多合理性检查
   if (channel1!=channel2 || pinH->peripheral!=pinL->peripheral)
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
 
@@ -519,15 +492,15 @@ STM32DriverParams* _initHardware6PWMPair(long PWM_freq, float dead_zone, PinMap*
   HT->setMode(channel1, TIMER_OUTPUT_COMPARE_PWM1, pinH->pin);
   HT->setMode(channel2, TIMER_OUTPUT_COMPARE_PWM1, pinL->pin);
 
-  // dead time is set in nanoseconds
+  // 死区时间以纳秒为单位设置
   uint32_t dead_time_ns = (float)(1e9f/PWM_freq)*dead_zone;
   uint32_t dead_time = __LL_TIM_CALC_DEADTIME(SystemCoreClock, LL_TIM_GetClockDivision(HT->getHandle()->Instance), dead_time_ns);
   if (dead_time>255) dead_time = 255;
   if (dead_time==0 && dead_zone>0) {
-    dead_time = 255; // LL_TIM_CALC_DEADTIME returns 0 if dead_time_ns is too large
-    SIMPLEFOC_DEBUG("STM32-DRV: WARN: dead time too large, setting to max");
+    dead_time = 255; // LL_TIM_CALC_DEADTIME在dead_time_ns过大时返回0
+    SIMPLEFOC_DEBUG("STM32-DRV: WARN: 死区时间过大，设置为最大值");
   }
-  LL_TIM_OC_SetDeadTime(HT->getHandle()->Instance, dead_time); // deadtime is non linear!
+  LL_TIM_OC_SetDeadTime(HT->getHandle()->Instance, dead_time); // 死区时间是非线性的！
   #if SIMPLEFOC_PWM_HIGHSIDE_ACTIVE_HIGH==false
   LL_TIM_OC_SetPolarity(HT->getHandle()->Instance, getLLChannel(pinH), LL_TIM_OCPOLARITY_LOW);
   #endif
@@ -537,7 +510,7 @@ STM32DriverParams* _initHardware6PWMPair(long PWM_freq, float dead_zone, PinMap*
   LL_TIM_CC_EnableChannel(HT->getHandle()->Instance, getLLChannel(pinH) | getLLChannel(pinL));
   HT->pause();
 
-  // make sure timer output goes to LOW when timer channels are temporarily disabled
+  // 确保当定时器通道暂时禁用时，定时器输出为低电平
   LL_TIM_SetOffStates(HT->getHandle()->Instance, LL_TIM_OSSI_DISABLE, LL_TIM_OSSR_ENABLE);
 
   params->timers[paramsPos] = HT;
@@ -547,9 +520,7 @@ STM32DriverParams* _initHardware6PWMPair(long PWM_freq, float dead_zone, PinMap*
   return params;
 }
 
-
-
-
+// 初始化硬件6PWM接口
 STM32DriverParams* _initHardware6PWMInterface(long PWM_freq, float dead_zone, PinMap* pinA_h, PinMap* pinA_l, PinMap* pinB_h, PinMap* pinB_l, PinMap* pinC_h, PinMap* pinC_l) {
   STM32DriverParams* params = new STM32DriverParams {
     .timers = { NP, NP, NP, NP, NP, NP },
@@ -569,48 +540,43 @@ STM32DriverParams* _initHardware6PWMInterface(long PWM_freq, float dead_zone, Pi
   return params;
 }
 
-
-
-
-
-
 /*
-  timer combination scoring function
-  assigns a score, and also checks the combination is valid
-  returns <0 if combination is invalid, >=0 if combination is valid. lower (but positive) score is better
-  for 6 pwm, hardware 6-pwm is preferred over software 6-pwm
-  hardware 6-pwm is possible if each low channel is the inverted counterpart of its high channel
-  inverted channels are not allowed except when using hardware 6-pwm (in theory they could be but lets not complicate things)
+  定时器组合评分函数
+  分配一个分数，并检查组合是否有效
+  返回<0表示组合无效，>=0表示组合有效。分数越低（但为正）越好
+  对于6PWM，硬件6PWM优先于软件6PWM
+  硬件6PWM的前提是每个低通道是其高通道的反相对应物
+  除非使用硬件6PWM，否则不允许反相通道（理论上可以，但不想复杂化）
 */
 int scoreCombination(int numPins, PinMap* pinTimers[]) {
-  // check already used - TODO move this to outer loop also...
+  // 检查是否已使用 - TODO 将此移动到外部循环...
   for (int i=0; i<numTimerPinsUsed; i++) {
     if (pinTimers[i]->peripheral == timerPinsUsed[i]->peripheral
         && STM_PIN_CHANNEL(pinTimers[i]->function) == STM_PIN_CHANNEL(timerPinsUsed[i]->function))
-      return -2; // bad combination - timer channel already used
+      return -2; // 组合不良 - 定时器通道已被使用
   }
   
-  // TODO LPTIM and HRTIM should be ignored for now
+  // TODO LPTIM和HRTIM目前应被忽略
   
-  // check for inverted channels
+  // 检查反相通道
   if (numPins < 6) {
     for (int i=0; i<numPins; i++) {
       if (STM_PIN_INVERTED(pinTimers[i]->function))
-        return -3; // bad combination - inverted channel used in non-hardware 6pwm
+        return -3; // 组合不良 - 在非硬件6PWM中使用了反相通道
     }
   }
-  // check for duplicated channels
+  // 检查重复通道
   for (int i=0; i<numPins-1; i++) {
     for (int j=i+1; j<numPins; j++) {
       if (pinTimers[i]->peripheral == pinTimers[j]->peripheral
           && STM_PIN_CHANNEL(pinTimers[i]->function) == STM_PIN_CHANNEL(pinTimers[j]->function)
           && STM_PIN_INVERTED(pinTimers[i]->function) == STM_PIN_INVERTED(pinTimers[j]->function))
-        return -4; // bad combination - duplicated channel
+        return -4; // 组合不良 - 重复通道
     }
   }
   int score = 0;
   for (int i=0; i<numPins; i++) {
-    // count distinct timers
+    // 计算不同的定时器
     bool found = false;
     for (int j=i+1; j<numPins; j++) {
       if (pinTimers[i]->peripheral == pinTimers[j]->peripheral)
@@ -619,13 +585,13 @@ int scoreCombination(int numPins, PinMap* pinTimers[]) {
     if (!found) score++;
   }
   if (numPins==6) {
-    // check for inverted channels - best: 1 timer, 3 channels, 3 matching inverted channels
-    //                                     >1 timer, 3 channels, 3 matching inverted channels
-    //                                     1 timer, 6 channels (no inverted channels)
-    //                                     >1 timer, 6 channels (no inverted channels)
-    // check for inverted high-side channels - TODO is this a configuration we should allow? what if all 3 high side channels are inverted and the low-side non-inverted?
+    // 检查反相通道 - 最佳情况: 1个定时器，3个通道，3个匹配的反相通道
+    //                                     >1个定时器，3个通道，3个匹配的反相通道
+    //                                     1个定时器，6个通道（无反相通道）
+    //                                     >1个定时器，6个通道（无反相通道）
+    // 检查反相高侧通道 - TODO 这是我们应该允许的配置吗？如果所有3个高侧通道都是反相的而低侧非反相的呢？
     if (STM_PIN_INVERTED(pinTimers[0]->function) || STM_PIN_INVERTED(pinTimers[2]->function) || STM_PIN_INVERTED(pinTimers[4]->function))
-      return -5; // bad combination - inverted channel used on high-side channel
+      return -5; // 组合不良 - 在高侧通道上使用了反相通道
     if (pinTimers[0]->peripheral == pinTimers[1]->peripheral
         && pinTimers[2]->peripheral == pinTimers[3]->peripheral
         && pinTimers[4]->peripheral == pinTimers[5]->peripheral
@@ -633,40 +599,38 @@ int scoreCombination(int numPins, PinMap* pinTimers[]) {
         && STM_PIN_CHANNEL(pinTimers[2]->function) == STM_PIN_CHANNEL(pinTimers[3]->function)
         && STM_PIN_CHANNEL(pinTimers[4]->function) == STM_PIN_CHANNEL(pinTimers[5]->function)
         && STM_PIN_INVERTED(pinTimers[1]->function) && STM_PIN_INVERTED(pinTimers[3]->function) && STM_PIN_INVERTED(pinTimers[5]->function)) {
-          // hardware 6pwm, score <10
+          // 硬件6PWM，分数<10
 
-          // TODO F37xxx doesn't support dead-time insertion, it has no TIM1/TIM8
-          // F301, F302 --> 6 channels, but only 1-3 have dead-time insertion
-          // TIM2/TIM3/TIM4/TIM5 don't do dead-time insertion
-          // TIM15/TIM16/TIM17 do dead-time insertion only on channel 1
+          // TODO F37xxx不支持死区时间插入，它没有TIM1/TIM8
+          // F301, F302 --> 6个通道，但只有1-3有死区时间插入
+          // TIM2/TIM3/TIM4/TIM5不支持死区时间插入
+          // TIM15/TIM16/TIM17仅在通道1上支持死区时间插入
 
-          // TODO check these defines
+          // TODO 检查这些定义
           #if defined(STM32F4xx_HAL_TIM_H) || defined(STM32F3xx_HAL_TIM_H) || defined(STM32F2xx_HAL_TIM_H) || defined(STM32F1xx_HAL_TIM_H) || defined(STM32F100_HAL_TIM_H) || defined(STM32FG0x1_HAL_TIM_H)  || defined(STM32G0x0_HAL_TIM_H) 
           if (STM_PIN_CHANNEL(pinTimers[0]->function)>3 || STM_PIN_CHANNEL(pinTimers[2]->function)>3 || STM_PIN_CHANNEL(pinTimers[4]->function)>3 )
-            return -8; // channel 4 does not have dead-time insertion
+            return -8; // 通道4不支持死区时间插入
           #endif
           #ifdef STM32G4xx_HAL_TIM_H
           if (STM_PIN_CHANNEL(pinTimers[0]->function)>4 || STM_PIN_CHANNEL(pinTimers[2]->function)>4 || STM_PIN_CHANNEL(pinTimers[4]->function)>4 )
-            return -8; // channels 5 & 6 do not have dead-time insertion
+            return -8; // 通道5和6不支持死区时间插入
           #endif
         }
     else {
-      // check for inverted low-side channels
+      // 检查反相低侧通道
       if (STM_PIN_INVERTED(pinTimers[1]->function) || STM_PIN_INVERTED(pinTimers[3]->function) || STM_PIN_INVERTED(pinTimers[5]->function))
-        return -6; // bad combination - inverted channel used on low-side channel in software 6-pwm
+        return -6; // 组合不良 - 在软件6PWM中低侧通道使用了反相通道
       if (pinTimers[0]->peripheral != pinTimers[1]->peripheral
         || pinTimers[2]->peripheral != pinTimers[3]->peripheral
         || pinTimers[4]->peripheral != pinTimers[5]->peripheral)
-        return -7; // bad combination - non-matching timers for H/L side in software 6-pwm
-      score += 10; // software 6pwm, score >10
+        return -7; // 组合不良 - 软件6PWM中高/低侧通道的定时器不匹配
+      score += 10; // 软件6PWM，分数>10
     }
   }
   return score;
 }
 
-
-
-
+// 查找第一个PinMap条目的索引
 int findIndexOfFirstPinMapEntry(int pin) {
   PinName pinName = digitalPinToPinName(pin);
   int i = 0;
@@ -678,7 +642,7 @@ int findIndexOfFirstPinMapEntry(int pin) {
   return -1;
 }
 
-
+// 查找最后一个PinMap条目的索引
 int findIndexOfLastPinMapEntry(int pin) {
   PinName pinName = digitalPinToPinName(pin);
   int i = 0;
@@ -691,13 +655,9 @@ int findIndexOfLastPinMapEntry(int pin) {
   return -1;
 }
 
-
-
-
-
-
 #define NOT_FOUND 1000
 
+// 查找最佳定时器组合
 int findBestTimerCombination(int numPins, int index, int pins[], PinMap* pinTimers[]) {
   PinMap* searchArray[numPins];
   for (int j=0;j<numPins;j++)
@@ -706,8 +666,8 @@ int findBestTimerCombination(int numPins, int index, int pins[], PinMap* pinTime
   int startIndex = findIndexOfFirstPinMapEntry(pins[index]);
   int endIndex = findIndexOfLastPinMapEntry(pins[index]);
   if (startIndex == -1 || endIndex == -1) {
-    SIMPLEFOC_DEBUG("STM32-DRV: ERR: no timer on pin ", pins[index]);
-    return -1; // pin is not connected to any timer
+    SIMPLEFOC_DEBUG("STM32-DRV: ERR: 引脚上没有定时器 ", pins[index]);
+    return -1; // 引脚未连接到任何定时器
   }
   for (int i=startIndex;i<=endIndex;i++) {
     searchArray[index] = (PinMap*)&PinMap_TIM[i];
@@ -721,7 +681,7 @@ int findBestTimerCombination(int numPins, int index, int pins[], PinMap* pinTime
       #endif
     }
     if (score==-1)
-      return -1; // pin not connected to any timer, propagate driectly
+      return -1; // 引脚未连接到任何定时器，直接传播
     if (score>=0 && score<bestScore) {
       bestScore = score;
       for (int j=index;j<numPins;j++)
@@ -731,38 +691,34 @@ int findBestTimerCombination(int numPins, int index, int pins[], PinMap* pinTime
   return bestScore;
 }
 
-
-
-
-
+// 查找最佳定时器组合
 int findBestTimerCombination(int numPins, int pins[], PinMap* pinTimers[]) {
   int bestScore = findBestTimerCombination(numPins, 0, pins, pinTimers);
   if (bestScore == NOT_FOUND) {
     #ifdef SIMPLEFOC_STM32_DEBUG
-    SimpleFOCDebug::println("STM32-DRV: no workable combination found on these pins");
+    SimpleFOCDebug::println("STM32-DRV: 在这些引脚上未找到可行组合");
     #endif
-    return -10; // no workable combination found
+    return -10; // 未找到可行组合
   }
   else if (bestScore >= 0) {
     #ifdef SIMPLEFOC_STM32_DEBUG
-    SimpleFOCDebug::print("STM32-DRV: best: ");
+    SimpleFOCDebug::print("STM32-DRV: 最佳: ");
     printTimerCombination(numPins, pinTimers, bestScore);
     #endif
   }
   return bestScore;
-};
+}
 
-
-
+// 配置1个PWM
 void* _configure1PWM(long pwm_frequency, const int pinA) {
   if (numTimerPinsUsed+1 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
-    SIMPLEFOC_DEBUG("STM32-DRV: ERR: too many pins used");
+    SIMPLEFOC_DEBUG("STM32-DRV: ERR: 使用的引脚太多");
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
   }
 
-  if( !pwm_frequency || !_isset(pwm_frequency) ) pwm_frequency = _PWM_FREQUENCY; // default frequency 25khz
-  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // constrain to 50kHz max
-  // center-aligned frequency is uses two periods
+  if( !pwm_frequency || !_isset(pwm_frequency) ) pwm_frequency = _PWM_FREQUENCY; // 默认频率25kHz
+  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // 限制为最大50kHz
+  // 中心对齐频率使用两个周期
   pwm_frequency *=2;
 
   int pins[1] = { pinA };
@@ -771,7 +727,7 @@ void* _configure1PWM(long pwm_frequency, const int pinA) {
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
 
   HardwareTimer* HT1 = _initPinPWM(pwm_frequency, pinTimers[0]);\
-  // align the timers
+  // 对齐定时器
   _alignTimersNew();
   
   uint32_t channel1 = STM_PIN_CHANNEL(pinTimers[0]->function);
@@ -789,30 +745,31 @@ void* _configure1PWM(long pwm_frequency, const int pinA) {
 
 
 
-// function setting the high pwm frequency to the supplied pins
-// - Stepper motor - 2PWM setting
-// - hardware speciffic
+
+// 设置高PWM频率到指定引脚的函数
+// - 步进电机 - 2PWM设置
+// - 硬件特定
 void* _configure2PWM(long pwm_frequency, const int pinA, const int pinB) {
-  if (numTimerPinsUsed+2 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
-    SIMPLEFOC_DEBUG("STM32-DRV: ERR: too many pins used");
+  if (numTimerPinsUsed + 2 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
+    SIMPLEFOC_DEBUG("STM32-DRV: 错误: 使用的引脚过多");
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
   }
 
-  if( !pwm_frequency || !_isset(pwm_frequency) ) pwm_frequency = _PWM_FREQUENCY; // default frequency 25khz
-  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // constrain to 50kHz max
-  // center-aligned frequency is uses two periods
-  pwm_frequency *=2;
+  if (!pwm_frequency || !_isset(pwm_frequency)) pwm_frequency = _PWM_FREQUENCY; // 默认频率25kHz
+  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // 限制为最大50kHz
+  // 中心对齐频率使用两个周期
+  pwm_frequency *= 2;
 
   int pins[2] = { pinA, pinB };
   PinMap* pinTimers[2] = { NP, NP };
-  if (findBestTimerCombination(2, pins, pinTimers)<0)
+  if (findBestTimerCombination(2, pins, pinTimers) < 0)
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
 
   HardwareTimer* HT1 = _initPinPWM(pwm_frequency, pinTimers[0]);
   HardwareTimer* HT2 = _initPinPWM(pwm_frequency, pinTimers[1]);
-  HardwareTimer *timers[2] = {HT1, HT2};
+  HardwareTimer *timers[2] = { HT1, HT2 };
   syncTimerFrequency(pwm_frequency, timers, 2); 
-  // allign the timers
+  // 对齐定时器
   _alignPWMTimers(HT1, HT2, HT2);
   
   uint32_t channel1 = STM_PIN_CHANNEL(pinTimers[0]->function);
@@ -828,35 +785,33 @@ void* _configure2PWM(long pwm_frequency, const int pinA, const int pinB) {
   return params;
 }
 
-
-
-
+// 定义主配置和从配置
 TIM_MasterConfigTypeDef sMasterConfig;
 TIM_SlaveConfigTypeDef sSlaveConfig;
 
-// function setting the high pwm frequency to the supplied pins
-// - BLDC motor - 3PWM setting
-// - hardware speciffic
-void* _configure3PWM(long pwm_frequency,const int pinA, const int pinB, const int pinC) {
-  if (numTimerPinsUsed+3 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
-    SIMPLEFOC_DEBUG("STM32-DRV: ERR: too many pins used");
+// 设置高PWM频率到指定引脚的函数
+// - 无刷直流电机 - 3PWM设置
+// - 硬件特定
+void* _configure3PWM(long pwm_frequency, const int pinA, const int pinB, const int pinC) {
+  if (numTimerPinsUsed + 3 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
+    SIMPLEFOC_DEBUG("STM32-DRV: 错误: 使用的引脚过多");
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
   }
-  if( !pwm_frequency || !_isset(pwm_frequency) ) pwm_frequency = _PWM_FREQUENCY; // default frequency 25khz
-  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // constrain to 50kHz max
-  // center-aligned frequency is uses two periods
-  pwm_frequency *=2;
+  if (!pwm_frequency || !_isset(pwm_frequency)) pwm_frequency = _PWM_FREQUENCY; // 默认频率25kHz
+  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // 限制为最大50kHz
+  // 中心对齐频率使用两个周期
+  pwm_frequency *= 2;
 
   int pins[3] = { pinA, pinB, pinC };
   PinMap* pinTimers[3] = { NP, NP, NP };
-  if (findBestTimerCombination(3, pins, pinTimers)<0)
+  if (findBestTimerCombination(3, pins, pinTimers) < 0)
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
 
   HardwareTimer* HT1 = _initPinPWM(pwm_frequency, pinTimers[0]);
   HardwareTimer* HT2 = _initPinPWM(pwm_frequency, pinTimers[1]);
   HardwareTimer* HT3 = _initPinPWM(pwm_frequency, pinTimers[2]);
 
-  HardwareTimer *timers[3] = {HT1, HT2, HT3};
+  HardwareTimer *timers[3] = { HT1, HT2, HT3 };
   syncTimerFrequency(pwm_frequency, timers, 3); 
 
   uint32_t channel1 = STM_PIN_CHANNEL(pinTimers[0]->function);
@@ -877,33 +832,31 @@ void* _configure3PWM(long pwm_frequency,const int pinA, const int pinB, const in
   return params;
 }
 
-
-
-// function setting the high pwm frequency to the supplied pins
-// - Stepper motor - 4PWM setting
-// - hardware speciffic
-void* _configure4PWM(long pwm_frequency,const int pinA, const int pinB, const int pinC, const int pinD) {
-  if (numTimerPinsUsed+4 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
-    SIMPLEFOC_DEBUG("STM32-DRV: ERR: too many pins used");
+// 设置高PWM频率到指定引脚的函数
+// - 步进电机 - 4PWM设置
+// - 硬件特定
+void* _configure4PWM(long pwm_frequency, const int pinA, const int pinB, const int pinC, const int pinD) {
+  if (numTimerPinsUsed + 4 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
+    SIMPLEFOC_DEBUG("STM32-DRV: 错误: 使用的引脚过多");
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
   }
-  if( !pwm_frequency || !_isset(pwm_frequency) ) pwm_frequency = _PWM_FREQUENCY; // default frequency 25khz
-  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // constrain to 50kHz max
-  // center-aligned frequency is uses two periods
-  pwm_frequency *=2;
+  if (!pwm_frequency || !_isset(pwm_frequency)) pwm_frequency = _PWM_FREQUENCY; // 默认频率25kHz
+  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // 限制为最大50kHz
+  // 中心对齐频率使用两个周期
+  pwm_frequency *= 2;
 
   int pins[4] = { pinA, pinB, pinC, pinD };
   PinMap* pinTimers[4] = { NP, NP, NP, NP };
-  if (findBestTimerCombination(4, pins, pinTimers)<0)
+  if (findBestTimerCombination(4, pins, pinTimers) < 0)
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
 
   HardwareTimer* HT1 = _initPinPWM(pwm_frequency, pinTimers[0]);
   HardwareTimer* HT2 = _initPinPWM(pwm_frequency, pinTimers[1]);
   HardwareTimer* HT3 = _initPinPWM(pwm_frequency, pinTimers[2]);
   HardwareTimer* HT4 = _initPinPWM(pwm_frequency, pinTimers[3]);
-  HardwareTimer *timers[4] = {HT1, HT2, HT3, HT4};
+  HardwareTimer *timers[4] = { HT1, HT2, HT3, HT4 };
   syncTimerFrequency(pwm_frequency, timers, 4); 
-  // allign the timers
+  // 对齐定时器
   _alignPWMTimers(HT1, HT2, HT3, HT4);
 
   uint32_t channel1 = STM_PIN_CHANNEL(pinTimers[0]->function);
@@ -923,84 +876,76 @@ void* _configure4PWM(long pwm_frequency,const int pinA, const int pinB, const in
   return params;
 }
 
-
-
-// function setting the pwm duty cycle to the hardware
-// - DC motor - 1PWM setting
-// - hardware speciffic
-void _writeDutyCycle1PWM(float dc_a, void* params){
-  // transform duty cycle from [0,1] to [0,255]
-  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_a, _PWM_RESOLUTION);
+// 设置PWM占空比到硬件
+// - 直流电机 - 1PWM设置
+// - 硬件特定
+void _writeDutyCycle1PWM(float dc_a, void* params) {
+  // 将占空比从[0,1]转换为[0,255]
+  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE * dc_a, _PWM_RESOLUTION);
 }
 
-
-
-// function setting the pwm duty cycle to the hardware
-// - Stepper motor - 2PWM setting
-//- hardware speciffic
-void _writeDutyCycle2PWM(float dc_a,  float dc_b, void* params){
-  // transform duty cycle from [0,1] to [0,4095]
-  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_a, _PWM_RESOLUTION);
-  _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _PWM_RANGE*dc_b, _PWM_RESOLUTION);
+// 设置PWM占空比到硬件
+// - 步进电机 - 2PWM设置
+// - 硬件特定
+void _writeDutyCycle2PWM(float dc_a, float dc_b, void* params) {
+  // 将占空比从[0,1]转换为[0,4095]
+  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE * dc_a, _PWM_RESOLUTION);
+  _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _PWM_RANGE * dc_b, _PWM_RESOLUTION);
 }
 
-// function setting the pwm duty cycle to the hardware
-// - BLDC motor - 3PWM setting
-//- hardware speciffic
-void _writeDutyCycle3PWM(float dc_a,  float dc_b, float dc_c, void* params){
-  // transform duty cycle from [0,1] to [0,4095]
-  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_a, _PWM_RESOLUTION);
-  _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _PWM_RANGE*dc_b, _PWM_RESOLUTION);
-  _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE*dc_c, _PWM_RESOLUTION);
+// 设置PWM占空比到硬件
+// - 无刷直流电机 - 3PWM设置
+// - 硬件特定
+void _writeDutyCycle3PWM(float dc_a, float dc_b, float dc_c, void* params) {
+  // 将占空比从[0,1]转换为[0,4095]
+  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE * dc_a, _PWM_RESOLUTION);
+  _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _PWM_RANGE * dc_b, _PWM_RESOLUTION);
+  _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE * dc_c, _PWM_RESOLUTION);
 }
 
-
-// function setting the pwm duty cycle to the hardware
-// - Stepper motor - 4PWM setting
-//- hardware speciffic
-void _writeDutyCycle4PWM(float dc_1a,  float dc_1b, float dc_2a, float dc_2b, void* params){
-  // transform duty cycle from [0,1] to [0,4095]
-  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_1a, _PWM_RESOLUTION);
-  _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _PWM_RANGE*dc_1b, _PWM_RESOLUTION);
-  _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE*dc_2a, _PWM_RESOLUTION);
-  _setPwm(((STM32DriverParams*)params)->timers[3], ((STM32DriverParams*)params)->channels[3], _PWM_RANGE*dc_2b, _PWM_RESOLUTION);
+// 设置PWM占空比到硬件
+// - 步进电机 - 4PWM设置
+// - 硬件特定
+void _writeDutyCycle4PWM(float dc_1a, float dc_1b, float dc_2a, float dc_2b, void* params) {
+  // 将占空比从[0,1]转换为[0,4095]
+  _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE * dc_1a, _PWM_RESOLUTION);
+  _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _PWM_RANGE * dc_1b, _PWM_RESOLUTION);
+  _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE * dc_2a, _PWM_RESOLUTION);
+  _setPwm(((STM32DriverParams*)params)->timers[3], ((STM32DriverParams*)params)->channels[3], _PWM_RANGE * dc_2b, _PWM_RESOLUTION);
 }
 
-
-
-
-// Configuring PWM frequency, resolution and alignment
-// - BLDC driver - 6PWM setting
-// - hardware specific
-void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, const int pinA_l, const int pinB_h, const int pinB_l, const int pinC_h, const int pinC_l){
-  if (numTimerPinsUsed+6 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
-    SIMPLEFOC_DEBUG("STM32-DRV: ERR: too many pins used");
+// 配置PWM频率、分辨率和对齐
+// - 无刷直流电机驱动 - 6PWM设置
+// - 硬件特定
+void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, const int pinA_l, const int pinB_h, const int pinB_l, const int pinC_h, const int pinC_l) {
+  if (numTimerPinsUsed + 6 > SIMPLEFOC_STM32_MAX_PINTIMERSUSED) {
+    SIMPLEFOC_DEBUG("STM32-DRV: 错误: 使用的引脚过多");
     return (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
   }
-  if( !pwm_frequency || !_isset(pwm_frequency) ) pwm_frequency = _PWM_FREQUENCY; // default frequency 25khz
-  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // constrain to |%0kHz max
-  // center-aligned frequency is uses two periods
-  pwm_frequency *=2;
+  if (!pwm_frequency || !_isset(pwm_frequency)) pwm_frequency = _PWM_FREQUENCY; // 默认频率25kHz
+  else pwm_frequency = _constrain(pwm_frequency, 0, _PWM_FREQUENCY_MAX); // 限制为最大50kHz
+  // 中心对齐频率使用两个周期
+  pwm_frequency *= 2;
 
-  // find configuration
+  // 查找配置
   int pins[6] = { pinA_h, pinA_l, pinB_h, pinB_l, pinC_h, pinC_l };
   PinMap* pinTimers[6] = { NP, NP, NP, NP, NP, NP };
   int score = findBestTimerCombination(6, pins, pinTimers);
 
   STM32DriverParams* params;
-  // configure accordingly
-  if (score<0)
+  // 根据得分配置
+  if (score < 0)
     params = (STM32DriverParams*)SIMPLEFOC_DRIVER_INIT_FAILED;
-  else if (score<10)  // hardware pwm
+  else if (score < 10)  // 硬件PWM
     params = _initHardware6PWMInterface(pwm_frequency, dead_zone, pinTimers[0], pinTimers[1], pinTimers[2], pinTimers[3], pinTimers[4], pinTimers[5]);
-  else {  // software pwm
+  else {  // 软件PWM
     HardwareTimer* HT1 = _initPinPWMHigh(pwm_frequency, pinTimers[0]);
     HardwareTimer* HT2 = _initPinPWMLow(pwm_frequency, pinTimers[1]);
     HardwareTimer* HT3 = _initPinPWMHigh(pwm_frequency, pinTimers[2]);
     HardwareTimer* HT4 = _initPinPWMLow(pwm_frequency, pinTimers[3]);
     HardwareTimer* HT5 = _initPinPWMHigh(pwm_frequency, pinTimers[4]);
     HardwareTimer* HT6 = _initPinPWMLow(pwm_frequency, pinTimers[5]);
-    HardwareTimer *timers[6] = {HT1, HT2, HT3, HT4, HT5, HT6};
+    HardwareTimer *timers[6] = { HT1, HT2, HT3, HT4, HT5, HT6 };
     syncTimerFrequency(pwm_frequency, timers, 6); 
     uint32_t channel1 = STM_PIN_CHANNEL(pinTimers[0]->function);
     uint32_t channel2 = STM_PIN_CHANNEL(pinTimers[1]->function);
@@ -1016,22 +961,21 @@ void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, cons
       .interface_type = _SOFTWARE_6PWM
     };
   }
-  if (score>=0) {
-    for (int i=0; i<6; i++)
+  if (score >= 0) {
+    for (int i = 0; i < 6; i++)
       timerPinsUsed[numTimerPinsUsed++] = pinTimers[i];
     _alignTimersNew();
   }
-  return params; // success
+  return params; // 成功
 }
 
-
-
-void _setSinglePhaseState(PhaseState state, HardwareTimer *HT, int channel1,int channel2) {
+// 设置单相状态的函数
+void _setSinglePhaseState(PhaseState state, HardwareTimer *HT, int channel1, int channel2) {
   _UNUSED(channel2);
   switch (state) {
     case PhaseState::PHASE_OFF:
-      // Due to a weird quirk in the arduino timer API, pauseChannel only disables the complementary channel (e.g. CC1NE).
-      // To actually make the phase floating, we must also set pwm to 0.
+      // 由于Arduino定时器API中的一个奇怪问题，pauseChannel只禁用互补通道（例如CC1NE）。
+      // 要真正使相位浮动，我们还必须将PWM设置为0。
       HT->pauseChannel(channel1);
       break;
     default:
@@ -1041,21 +985,22 @@ void _setSinglePhaseState(PhaseState state, HardwareTimer *HT, int channel1,int 
 }
 
 
-// Function setting the duty cycle to the pwm pin (ex. analogWrite())
-// - BLDC driver - 6PWM setting
-// - hardware specific
+
+// 将占空比设置到PWM引脚的函数（例如：analogWrite()）
+// - BLDC驱动 - 6PWM设置
+// - 硬件特定
 void _writeDutyCycle6PWM(float dc_a, float dc_b, float dc_c, PhaseState* phase_state, void* params){
   switch(((STM32DriverParams*)params)->interface_type){
     case _HARDWARE_6PWM:
-      // phase a
+      // 相a
       _setSinglePhaseState(phase_state[0], ((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], ((STM32DriverParams*)params)->channels[1]);
       if(phase_state[0] == PhaseState::PHASE_OFF) dc_a = 0.0f;
       _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_a, _PWM_RESOLUTION);
-      // phase b
+      // 相b
       _setSinglePhaseState(phase_state[1], ((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], ((STM32DriverParams*)params)->channels[3]);
       if(phase_state[1] == PhaseState::PHASE_OFF) dc_b = 0.0f;
       _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE*dc_b, _PWM_RESOLUTION);
-      // phase c
+      // 相c
       _setSinglePhaseState(phase_state[2], ((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], ((STM32DriverParams*)params)->channels[5]);
       if(phase_state[2] == PhaseState::PHASE_OFF) dc_c = 0.0f;
       _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], _PWM_RANGE*dc_c, _PWM_RESOLUTION);
@@ -1092,8 +1037,6 @@ void _writeDutyCycle6PWM(float dc_a, float dc_b, float dc_c, PhaseState* phase_s
   }
   _UNUSED(phase_state);
 }
-
-
 
 #ifdef SIMPLEFOC_STM32_DEBUG
 
@@ -1167,7 +1110,6 @@ int getTimerNumber(int timerIndex) {
   return -1;
 }
 
-
 void printTimerCombination(int numPins, PinMap* timers[], int score) {
   for (int i=0; i<numPins; i++) {
     if (timers[i] == NP)
@@ -1182,8 +1124,9 @@ void printTimerCombination(int numPins, PinMap* timers[], int score) {
     }
     SimpleFOCDebug::print(" ");
   }
-  SimpleFOCDebug::println("score: ", score);
+ SimpleFOCDebug::println("score: ", score);
 }
+
 
 #endif
 

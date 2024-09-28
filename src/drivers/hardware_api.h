@@ -6,172 +6,165 @@
 #include "../communication/SimpleFOCDebug.h"
 #include "../common/base_classes/BLDCDriver.h"
 
+// 这些定义决定了 PWM 输出的极性。通常情况下，极性为高电平有效，
+// 即期望高电平 PWM 输出能够开启 MOSFET。如果您的驱动设计需要反向极性，
+// 您可以更改下面的定义，或通过构建环境或板定义文件进行设置。
 
-// these defines determine the polarity of the PWM output. Normally, the polarity is active-high,
-// i.e. a high-level PWM output is expected to switch on the MOSFET. But should your driver design
-// require inverted polarity, you can change the defines below, or set them via your build environment
-// or board definition files.
-
-// used for 1-PWM, 2-PWM, 3-PWM, and 4-PWM modes
+// 用于 1-PWM、2-PWM、3-PWM 和 4-PWM 模式
 #ifndef SIMPLEFOC_PWM_ACTIVE_HIGH
 #define SIMPLEFOC_PWM_ACTIVE_HIGH true
 #endif
-// used for 6-PWM mode, high-side
+// 用于 6-PWM 模式，高侧
 #ifndef SIMPLEFOC_PWM_HIGHSIDE_ACTIVE_HIGH
 #define SIMPLEFOC_PWM_HIGHSIDE_ACTIVE_HIGH true
 #endif
-// used for 6-PWM mode, low-side
+// 用于 6-PWM 模式，低侧
 #ifndef SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH
 #define SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH true
 #endif
 
-// flag returned if driver init fails
+// 如果驱动初始化失败，返回的标志
 #define SIMPLEFOC_DRIVER_INIT_FAILED ((void*)-1)
 
-// generic implementation of the hardware specific structure
-// containing all the necessary driver parameters
-// will be returned as a void pointer from the _configurexPWM functions
-// will be provided to the _writeDutyCyclexPWM() as a void pointer
+// 硬件特定结构的通用实现
+// 包含所有必要的驱动参数
+// 将作为 void 指针从 _configurexPWM 函数返回
+// 将作为 void 指针提供给 _writeDutyCyclexPWM() 
 typedef struct GenericDriverParams {
-  int pins[6];
-  long pwm_frequency;
-  float dead_zone;
+  int pins[6]; // 引脚数组
+  long pwm_frequency; // PWM 频率
+  float dead_zone; // 死区
 } GenericDriverParams;
 
-
 /** 
- * Configuring PWM frequency, resolution and alignment
- * - Stepper driver - 2PWM setting
- * - hardware specific
+ * 配置 PWM 频率、分辨率和对齐
+ * - 步进电机驱动 - 2PWM 设置
+ * - 硬件特定
  * 
- * @param pwm_frequency - frequency in hertz - if applicable
- * @param pinA pinA pwm pin
+ * @param pwm_frequency - 频率（赫兹） - 如果适用
+ * @param pinA - pinA PWM 引脚
  * 
- * @return -1 if failed, or pointer to internal driver parameters struct if successful
+ * @return -1 如果失败，或指向内部驱动参数结构的指针如果成功
  */
 void* _configure1PWM(long pwm_frequency, const int pinA);
 
 /** 
- * Configuring PWM frequency, resolution and alignment
- * - Stepper driver - 2PWM setting
- * - hardware specific
+ * 配置 PWM 频率、分辨率和对齐
+ * - 步进电机驱动 - 2PWM 设置
+ * - 硬件特定
  * 
- * @param pwm_frequency - frequency in hertz - if applicable
- * @param pinA pinA bldc driver
- * @param pinB pinB bldc driver
+ * @param pwm_frequency - 频率（赫兹） - 如果适用
+ * @param pinA - pinA BLDC 驱动
+ * @param pinB - pinB BLDC 驱动
  * 
- * @return -1 if failed, or pointer to internal driver parameters struct if successful
+ * @return -1 如果失败，或指向内部驱动参数结构的指针如果成功
  */
 void* _configure2PWM(long pwm_frequency, const int pinA, const int pinB);
 
 /** 
- * Configuring PWM frequency, resolution and alignment
- * - BLDC driver - 3PWM setting
- * - hardware specific
+ * 配置 PWM 频率、分辨率和对齐
+ * - BLDC 驱动 - 3PWM 设置
+ * - 硬件特定
  * 
- * @param pwm_frequency - frequency in hertz - if applicable
- * @param pinA pinA bldc driver
- * @param pinB pinB bldc driver
- * @param pinC pinC bldc driver
+ * @param pwm_frequency - 频率（赫兹） - 如果适用
+ * @param pinA - pinA BLDC 驱动
+ * @param pinB - pinB BLDC 驱动
+ * @param pinC - pinC BLDC 驱动
  * 
- * @return -1 if failed, or pointer to internal driver parameters struct if successful
+ * @return -1 如果失败，或指向内部驱动参数结构的指针如果成功
  */
 void* _configure3PWM(long pwm_frequency, const int pinA, const int pinB, const int pinC);
 
 /** 
- * Configuring PWM frequency, resolution and alignment
- * - Stepper driver - 4PWM setting
- * - hardware specific
+ * 配置 PWM 频率、分辨率和对齐
+ * - 步进电机驱动 - 4PWM 设置
+ * - 硬件特定
  * 
- * @param pwm_frequency - frequency in hertz - if applicable
- * @param pin1A pin1A stepper driver
- * @param pin1B pin1B stepper driver
- * @param pin2A pin2A stepper driver
- * @param pin2B pin2B stepper driver
+ * @param pwm_frequency - 频率（赫兹） - 如果适用
+ * @param pin1A - pin1A 步进电机驱动
+ * @param pin1B - pin1B 步进电机驱动
+ * @param pin2A - pin2A 步进电机驱动
+ * @param pin2B - pin2B 步进电机驱动
  * 
- * @return -1 if failed, or pointer to internal driver parameters struct if successful
+ * @return -1 如果失败，或指向内部驱动参数结构的指针如果成功
  */
 void* _configure4PWM(long pwm_frequency, const int pin1A, const int pin1B, const int pin2A, const int pin2B);
 
 /** 
- * Configuring PWM frequency, resolution and alignment
- * - BLDC driver - 6PWM setting
- * - hardware specific
+ * 配置 PWM 频率、分辨率和对齐
+ * - BLDC 驱动 - 6PWM 设置
+ * - 硬件特定
  * 
- * @param pwm_frequency - frequency in hertz - if applicable
- * @param dead_zone  duty cycle protection zone [0, 1] - both low and high side low - if applicable
- * @param pinA_h pinA high-side bldc driver 
- * @param pinA_l pinA low-side bldc driver 
- * @param pinB_h pinA high-side bldc driver 
- * @param pinB_l pinA low-side bldc driver 
- * @param pinC_h pinA high-side bldc driver 
- * @param pinC_l pinA low-side bldc driver 
+ * @param pwm_frequency - 频率（赫兹） - 如果适用
+ * @param dead_zone - 占空比保护区 [0, 1] - 低侧和高侧均低 - 如果适用
+ * @param pinA_h - pinA 高侧 BLDC 驱动 
+ * @param pinA_l - pinA 低侧 BLDC 驱动 
+ * @param pinB_h - pinB 高侧 BLDC 驱动 
+ * @param pinB_l - pinB 低侧 BLDC 驱动 
+ * @param pinC_h - pinC 高侧 BLDC 驱动 
+ * @param pinC_l - pinC 低侧 BLDC 驱动 
  * 
- * @return -1 if failed, or pointer to internal driver parameters struct if successful
+ * @return -1 如果失败，或指向内部驱动参数结构的指针如果成功
  */
 void* _configure6PWM(long pwm_frequency, float dead_zone, const int pinA_h, const int pinA_l,  const int pinB_h, const int pinB_l, const int pinC_h, const int pinC_l);
 
 /** 
- * Function setting the duty cycle to the pwm pin (ex. analogWrite())
- * - Stepper driver - 2PWM setting
- * - hardware specific
+ * 设置 PWM 引脚的占空比（例如，analogWrite()）
+ * - 步进电机驱动 - 2PWM 设置
+ * - 硬件特定
  * 
- * @param dc_a  duty cycle phase A [0, 1]
- * @param dc_b  duty cycle phase B [0, 1]
- * @param params  the driver parameters
+ * @param dc_a - 占空比相 A [0, 1]
+ * @param params - 驱动参数
  */ 
 void _writeDutyCycle1PWM(float dc_a, void* params);
 
 /** 
- * Function setting the duty cycle to the pwm pin (ex. analogWrite())
- * - Stepper driver - 2PWM setting
- * - hardware specific
+ * 设置 PWM 引脚的占空比（例如，analogWrite()）
+ * - 步进电机驱动 - 2PWM 设置
+ * - 硬件特定
  * 
- * @param dc_a  duty cycle phase A [0, 1]
- * @param dc_b  duty cycle phase B [0, 1]
- * @param params  the driver parameters
+ * @param dc_a - 占空比相 A [0, 1]
+ * @param dc_b - 占空比相 B [0, 1]
+ * @param params - 驱动参数
  */ 
 void _writeDutyCycle2PWM(float dc_a,  float dc_b, void* params);
 
 /** 
- * Function setting the duty cycle to the pwm pin (ex. analogWrite())
- * - BLDC driver - 3PWM setting
- * - hardware specific
+ * 设置 PWM 引脚的占空比（例如，analogWrite()）
+ * - BLDC 驱动 - 3PWM 设置
+ * - 硬件特定
  * 
- * @param dc_a  duty cycle phase A [0, 1]
- * @param dc_b  duty cycle phase B [0, 1]
- * @param dc_c  duty cycle phase C [0, 1]
- * @param params  the driver parameters
+ * @param dc_a - 占空比相 A [0, 1]
+ * @param dc_b - 占空比相 B [0, 1]
+ * @param dc_c - 占空比相 C [0, 1]
+ * @param params - 驱动参数
  */ 
 void _writeDutyCycle3PWM(float dc_a,  float dc_b, float dc_c, void* params);
 
 /** 
- * Function setting the duty cycle to the pwm pin (ex. analogWrite())
- * - Stepper driver - 4PWM setting
- * - hardware specific
+ * 设置 PWM 引脚的占空比（例如，analogWrite()）
+ * - 步进电机驱动 - 4PWM 设置
+ * - 硬件特定
  * 
- * @param dc_1a  duty cycle phase 1A [0, 1]
- * @param dc_1b  duty cycle phase 1B [0, 1]
- * @param dc_2a  duty cycle phase 2A [0, 1]
- * @param dc_2b  duty cycle phase 2B [0, 1]
- * @param params  the driver parameters
+ * @param dc_1a - 占空比相 1A [0, 1]
+ * @param dc_1b - 占空比相 1B [0, 1]
+ * @param dc_2a - 占空比相 2A [0, 1]
+ * @param dc_2b - 占空比相 2B [0, 1]
+ * @param params - 驱动参数
  */ 
 void _writeDutyCycle4PWM(float dc_1a,  float dc_1b, float dc_2a, float dc_2b, void* params);
 
-
 /** 
- * Function setting the duty cycle to the pwm pin (ex. analogWrite())
- * - BLDC driver - 6PWM setting
- * - hardware specific
+ * 设置 PWM 引脚的占空比（例如，analogWrite()）
+ * - BLDC 驱动 - 6PWM 设置
+ * - 硬件特定
  * 
- * @param dc_a  duty cycle phase A [0, 1]
- * @param dc_b  duty cycle phase B [0, 1]
- * @param dc_c  duty cycle phase C [0, 1]
- * @param phase_state  pointer to PhaseState[3] array
- * @param params  the driver parameters
- * 
+ * @param dc_a - 占空比相 A [0, 1]
+ * @param dc_b - 占空比相 B [0, 1]
+ * @param dc_c - 占空比相 C [0, 1]
+ * @param phase_state - 指向 PhaseState[3] 数组的指针
+ * @param params - 驱动参数
  */ 
 void _writeDutyCycle6PWM(float dc_a,  float dc_b, float dc_c, PhaseState *phase_state, void* params);
-
 
 #endif
