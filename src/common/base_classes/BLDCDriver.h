@@ -7,29 +7,29 @@
 class BLDCDriver: public FOCDriver{
     public:
 
-        float dc_a; //!< currently set duty cycle on phaseA
-        float dc_b; //!< currently set duty cycle on phaseB
-        float dc_c; //!< currently set duty cycle on phaseC
+        float dc_a; //!< 当前设置的相A占空比
+        float dc_b; //!< 当前设置的相B占空比
+        float dc_c; //!< 当前设置的相C占空比
 
         /**
-         * Set phase voltages to the hardware
+         * 将相电压设置为硬件
          *
-         * @param Ua - phase A voltage
-         * @param Ub - phase B voltage
-         * @param Uc - phase C voltage
+         * @param Ua - 相A电压
+         * @param Ub - 相B电压
+         * @param Uc - 相C电压
         */
         virtual void setPwm(float Ua, float Ub, float Uc) = 0;
 
         /**
-         * Set phase state, enable/disable
+         * 设置相状态，启用/禁用
          *
-         * @param sc - phase A state : active / disabled ( high impedance )
-         * @param sb - phase B state : active / disabled ( high impedance )
-         * @param sa - phase C state : active / disabled ( high impedance )
+         * @param sc - 相A状态 : 活跃 / 禁用（高阻抗）
+         * @param sb - 相B状态 : 活跃 / 禁用（高阻抗）
+         * @param sa - 相C状态 : 活跃 / 禁用（高阻抗）
         */
         virtual void setPhaseState(PhaseState sa, PhaseState sb, PhaseState sc) = 0;
 
-        /** driver type getter function */
+        /** 驱动器类型获取函数 */
         virtual DriverType type() override { return DriverType::BLDC; };
 };
 

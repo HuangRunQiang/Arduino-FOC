@@ -1,84 +1,82 @@
 #include "CurrentSense.h"
 #include "../../communication/SimpleFOCDebug.h"
 
-
-// get current magnitude 
-//   - absolute  - if no electrical_angle provided 
-//   - signed    - if angle provided
-float CurrentSense::getDCCurrent(float motor_electrical_angle){
-    // read current phase currents
+// 获取电流幅度
+//   - 绝对值  - 如果没有提供电气角
+//   - 符号值  - 如果提供了角度
+float CurrentSense::getDCCurrent(float motor_electrical_angle) {
+    // 读取相电流
     PhaseCurrent_s current = getPhaseCurrents();
     
-    // calculate clarke transform
+    // 计算克拉克变换
     ABCurrent_s ABcurrent = getABCurrents(current);
 
-    // current sign - if motor angle not provided the magnitude is always positive
+    // 电流符号 - 如果没有提供电机角度，则幅度始终为正
     float sign = 1;
 
-    // if motor angle provided function returns signed value of the current
-    // determine the sign of the current
-    // sign(atan2(current.q, current.d)) is the same as c.q > 0 ? 1 : -1  
-    if(motor_electrical_angle) {
+    // 如果提供了电机角度，函数返回电流的符号值
+    // 确定电流的符号
+    // sign(atan2(current.q, current.d)) 与 c.q > 0 ? 1 : -1 相同  
+    if (motor_electrical_angle) {
         float ct;
         float st;
         _sincos(motor_electrical_angle, &st, &ct);
-        sign = (ABcurrent.beta*ct - ABcurrent.alpha*st) > 0 ? 1 : -1;  
+        sign = (ABcurrent.beta * ct - ABcurrent.alpha * st) > 0 ? 1 : -1;  
     }
-    // return current magnitude
-    return sign*_sqrt(ABcurrent.alpha*ABcurrent.alpha + ABcurrent.beta*ABcurrent.beta);
+    // 返回电流幅度
+    return sign * _sqrt(ABcurrent.alpha * ABcurrent.alpha + ABcurrent.beta * ABcurrent.beta);
 }
 
-// function used with the foc algorithm
-//   calculating DQ currents from phase currents
-//   - function calculating park and clarke transform of the phase currents 
-//   - using getPhaseCurrents and getABCurrents internally
-DQCurrent_s CurrentSense::getFOCCurrents(float angle_el){
-    // read current phase currents
+// 与FOC算法一起使用的函数
+//   从相电流计算DQ电流
+//   - 函数计算相电流的帕克和克拉克变换 
+//   - 内部使用getPhaseCurrents和getABCurrents
+DQCurrent_s CurrentSense::getFOCCurrents(float angle_el) {
+    // 读取相电流
     PhaseCurrent_s current = getPhaseCurrents();
 
-    // calculate clarke transform
+    // 计算克拉克变换
     ABCurrent_s ABcurrent = getABCurrents(current);
     
-    // calculate park transform
-    DQCurrent_s return_current = getDQCurrents(ABcurrent,angle_el);
+    // 计算帕克变换
+    DQCurrent_s return_current = getDQCurrents(ABcurrent, angle_el);
 
     return return_current;
 }
 
-// function used with the foc algorithm
-//   calculating Alpha Beta currents from phase currents
-//   - function calculating Clarke transform of the phase currents
-ABCurrent_s CurrentSense::getABCurrents(PhaseCurrent_s current){
+// 与FOC算法一起使用的函数
+//   从相电流计算阿尔法贝塔电流
+//   - 函数计算相电流的克拉克变换
+ABCurrent_s CurrentSense::getABCurrents(PhaseCurrent_s current) {
 
-    // check if driver is an instance of StepperDriver
-    // if so there is no need to Clarke transform
-    if (driver_type == DriverType::Stepper){
+    // 检查驱动程序是否为StepperDriver的实例
+    // 如果是，则无需进行克拉克变换
+    if (driver_type == DriverType::Stepper) {
         ABCurrent_s return_ABcurrent;
         return_ABcurrent.alpha = current.a;
         return_ABcurrent.beta = current.b;
         return return_ABcurrent;
     }
 
-    // otherwise it's a BLDC motor and 
-    // calculate clarke transform
+    // 否则，它是BLDC电机，计算克拉克变换
     float i_alpha, i_beta;
-    if(!current.c){
-        // if only two measured currents
+    if (!current.c) {
+        // 如果只测量了两个电流
         i_alpha = current.a;  
         i_beta = _1_SQRT3 * current.a + _2_SQRT3 * current.b;
-    }else if(!current.a){
-        // if only two measured currents
+    } else if (!current.a) {
+        // 如果只测量了两个电流
         float a = -current.c - current.b;
         i_alpha = a;  
         i_beta = _1_SQRT3 * a + _2_SQRT3 * current.b;
-    }else if(!current.b){
-        // if only two measured currents
+    } else if (!current.b) {
+        // 如果只测量了两个电流
         float b = -current.a - current.c;
         i_alpha = current.a;  
         i_beta = _1_SQRT3 * current.a + _2_SQRT3 * b;
     } else {
-        // signal filtering using identity a + b + c = 0. Assumes measurement error is normally distributed.
-        float mid = (1.f/3) * (current.a + current.b + current.c);
+        // 使用恒等式a + b + c = 0进行信号滤波。假设测量误差是正态分布的。
+        float mid = (1.f / 3) * (current.a + current.b + current.c);
         float a = current.a - mid;
         float b = current.b - mid;
         i_alpha = a;
@@ -91,11 +89,11 @@ ABCurrent_s CurrentSense::getABCurrents(PhaseCurrent_s current){
     return return_ABcurrent;
 }
 
-// function used with the foc algorithm
-//   calculating D and Q currents from Alpha Beta currents and electrical angle
-//   - function calculating Clarke transform of the phase currents
-DQCurrent_s CurrentSense::getDQCurrents(ABCurrent_s current, float angle_el){
- // calculate park transform
+// 与FOC算法一起使用的函数
+//   从阿尔法贝塔电流和电气角计算D和Q电流
+//   - 函数计算相电流的克拉克变换
+DQCurrent_s CurrentSense::getDQCurrents(ABCurrent_s current, float angle_el) {
+    // 计算帕克变换
     float ct;
     float st;
     _sincos(angle_el, &st, &ct);
@@ -106,50 +104,46 @@ DQCurrent_s CurrentSense::getDQCurrents(ABCurrent_s current, float angle_el){
 }
 
 /**
-	Driver linking to the current sense
+	驱动程序链接到电流传感器
 */
 void CurrentSense::linkDriver(FOCDriver* _driver) {
     driver = _driver;
-    // save the driver type for easier access
+    // 保存驱动程序类型以便更方便访问
     driver_type = driver->type();
 }
 
-
-void CurrentSense::enable(){
-    // nothing is done here, but you can override this function
+void CurrentSense::enable() {
+    // 此处不执行任何操作，但可以覆盖此函数
 };
 
-void CurrentSense::disable(){
-    // nothing is done here, but you can override this function
+void CurrentSense::disable() {
+    // 此处不执行任何操作，但可以覆盖此函数
 };
 
-
-// Function aligning the current sense with motor driver
-// if all pins are connected well none of this is really necessary! - can be avoided
-// returns flag
-// 0 - fail
-// 1 - success and nothing changed
-// 2 - success but pins reconfigured
-// 3 - success but gains inverted
-// 4 - success but pins reconfigured and gains inverted
-// IMPORTANT, this function can be overriden in the child class
-int CurrentSense::driverAlign(float voltage, bool modulation_centered){
+// 函数对齐电流传感器与电机驱动程序
+// 如果所有引脚连接良好，实际上没有必要执行这些操作！- 可以避免
+// 返回标志
+// 0 - 失败
+// 1 - 成功且没有更改
+// 2 - 成功但引脚重新配置
+// 3 - 成功但增益反转
+// 4 - 成功但引脚重新配置且增益反转
+// 重要提示，此函数可以在子类中重写
+int CurrentSense::driverAlign(float voltage, bool modulation_centered) {
         
     int exit_flag = 1;
-    if(skip_align) return exit_flag;
+    if (skip_align) return exit_flag;
 
     if (!initialized) return 0;
 
-    // check if stepper or BLDC 
-    if(driver_type == DriverType::Stepper)
+    // 检查是步进电机还是BLDC 
+    if (driver_type == DriverType::Stepper)
         return alignStepperDriver(voltage, (StepperDriver*)driver, modulation_centered);
     else
         return alignBLDCDriver(voltage, (BLDCDriver*)driver, modulation_centered);
 }
 
-
-
-// Helper function to read and average phase currents
+// 辅助函数读取和平均相电流
 PhaseCurrent_s CurrentSense::readAverageCurrents(int N) {
     PhaseCurrent_s c = getPhaseCurrents();
     for (int i = 0; i < N; i++) {
@@ -162,314 +156,305 @@ PhaseCurrent_s CurrentSense::readAverageCurrents(int N) {
     return c;
 };
 
-
-
-// Function aligning the current sense with motor driver
-// if all pins are connected well none of this is really necessary! - can be avoided
-// returns flag
-// 0 - fail
-// 1 - success and nothing changed
-// 2 - success but pins reconfigured
-// 3 - success but gains inverted
-// 4 - success but pins reconfigured and gains inverted
-int CurrentSense::alignBLDCDriver(float voltage, BLDCDriver* bldc_driver, bool modulation_centered){
+// 函数对齐电流传感器与电机驱动程序
+// 如果所有引脚连接良好，实际上没有必要执行这些操作！- 可以避免
+// 返回标志
+// 0 - 失败
+// 1 - 成功且没有更改
+// 2 - 成功但引脚重新配置
+// 3 - 成功但增益反转
+// 4 - 成功但引脚重新配置且增益反转
+int CurrentSense::alignBLDCDriver(float voltage, BLDCDriver* bldc_driver, bool modulation_centered) {
         
     bool phases_switched = 0;
     bool phases_inverted = 0;
     
     float zero = 0;
-    if(modulation_centered) zero = driver->voltage_limit/2.0;
+    if (modulation_centered) zero = driver->voltage_limit / 2.0;
 
-    // set phase A active and phases B and C down
-    // 300 ms of ramping
-    for(int i=0; i < 100; i++){
-        bldc_driver->setPwm(voltage/100.0*((float)i)+zero , zero, zero);
+    // 设置相A为活动，相B和C为关闭
+    // 300毫秒的升压
+    for (int i = 0; i < 100; i++) {
+        bldc_driver->setPwm(voltage / 100.0 * ((float)i) + zero, zero, zero);
         _delay(3);
     }
     _delay(500);
     PhaseCurrent_s c_a = readAverageCurrents();
     bldc_driver->setPwm(zero, zero, zero);
-    // check if currents are to low (lower than 100mA) 
-    // TODO calculate the 100mA threshold from the ADC resolution
-    // if yes throw an error and return 0
-    // either the current sense is not connected or the current is 
-    // too low for calibration purposes (one should raise the motor.voltage_sensor_align)
-    if((fabs(c_a.a) < 0.1f) && (fabs(c_a.b) < 0.1f) && (fabs(c_a.c) < 0.1f)){
-            SIMPLEFOC_DEBUG("CS: Err too low current, rise voltage!");
-            return 0; // measurement current too low
+    // 检查电流是否过低（低于100mA） 
+    // TODO 根据ADC分辨率计算100mA阈值
+    // 如果是，则抛出错误并返回0
+    // 电流传感器未连接或电流过低，无法进行校准（应提高motor.voltage_sensor_align）
+    if ((fabs(c_a.a) < 0.1f) && (fabs(c_a.b) < 0.1f) && (fabs(c_a.c) < 0.1f)) {
+        SIMPLEFOC_DEBUG("CS: Err too low current, rise voltage!");
+        return 0; // 测量电流过低
     }
 
-    
-    // now we have to determine 
-    // 1) which pin correspond to which phase of the bldc driver
-    // 2) if the currents measured have good polarity
+    // 现在我们必须确定 
+    // 1) 哪个引脚对应于BLDC驱动程序的哪个相
+    // 2) 如果测量的电流具有良好的极性
     // 
-    // > when we apply a voltage to a phase A of the driver what we expect to measure is the current I on the phase A
-    //   and -I/2 on the phase B and I/2 on the phase C
+    // > 当我们对驱动程序的相A施加电压时，我们期望测量的是相A的电流I
+    //   和相B的电流-I/2，以及相C的电流I/2
 
-    // find the highest magnitude in c_a
-    // and make sure it's around 2 (1.5 at least) times higher than the other two
+    // 找到c_a中的最大幅度
+    // 并确保它比其他两个大约高2倍（至少1.5倍）
     float ca[3] = {fabs(c_a.a), fabs(c_a.b), fabs(c_a.c)};
-    uint8_t max_i = -1; // max index
-    float max_c = 0; // max current
-    float max_c_ratio = 0; // max current ratio
-    for(int i = 0; i < 3; i++){
-        if(!ca[i]) continue; // current not measured
-        if(ca[i] > max_c){
+    uint8_t max_i = -1; // 最大索引
+    float max_c = 0; // 最大电流
+    float max_c_ratio = 0; // 最大电流比
+    for (int i = 0; i < 3; i++) {
+        if (!ca[i]) continue; // 电流未测量
+        if (ca[i] > max_c) {
             max_c = ca[i];
             max_i = i;
-            for(int j = 0; j < 3; j++){
-                if(i == j) continue;
-                if(!ca[j]) continue; // current not measured
+            for (int j = 0; j < 3; j++) {
+                if (i == j) continue;
+                if (!ca[j]) continue; // 电流未测量
                 float ratio = max_c / ca[j];
-                if(ratio > max_c_ratio) max_c_ratio = ratio;
+                if (ratio > max_c_ratio) max_c_ratio = ratio;
             }
         }
     }
 
-    // check the current magnitude ratios
-    // 1) if there is one current that is approximately 2 times higher than the other two
-    //    this is the A current
-    // 2) if the max current is not at least 1.5 times higher than the other two
-    //    we have two cases:
-    //    - either we only measure two currents and the third one is not measured - then phase A is not measured
-    //    - or the current sense is not connected properly
+    // 检查电流幅度比
+    // 1) 如果有一个电流大约比其他两个高2倍
+    //    这就是相A的电流
+    // 2) 如果最大电流至少比其他两个高1.5倍
+    //    我们有两种情况：
+    //    - 要么我们只测量了两个电流，第三个未测量 - 那么相A未测量
+    //    - 或者电流传感器未正确连接
 
-    if(max_c_ratio >=1.5f){
-        switch (max_i){
-            case 1: // phase B is the max current
+    if (max_c_ratio >= 1.5f) {
+        switch (max_i) {
+            case 1: // 相B是最大电流
                 SIMPLEFOC_DEBUG("CS: Switch A-B");
-                // switch phase A and B
+                // 交换相A和相B
                 _swap(pinA, pinB);
                 _swap(offset_ia, offset_ib);
                 _swap(gain_a, gain_b);
                 _swap(c_a.b, c_a.b);
-                phases_switched = true; // signal that pins have been switched
+                phases_switched = true; // 标记引脚已交换
                 break;
-            case 2: // phase C is the max current
+            case 2: // 相C是最大电流
                 SIMPLEFOC_DEBUG("CS: Switch A-C");
-                // switch phase A and C
+                // 交换相A和相C
                 _swap(pinA, pinC);
                 _swap(offset_ia, offset_ic);
                 _swap(gain_a, gain_c);
                 _swap(c_a.a, c_a.c);
-                phases_switched = true;// signal that pins have been switched
+                phases_switched = true; // 标记引脚已交换
                 break;
         }
-        // check if the current is negative and invert the gain if so
-        if( _sign(c_a.a) < 0 ){
+        // 检查电流是否为负，如果是，则反转增益
+        if (_sign(c_a.a) < 0) {
             SIMPLEFOC_DEBUG("CS: Inv A");
             gain_a *= -1;
-            phases_inverted = true; // signal that pins have been inverted
+            phases_inverted = true; // 标记引脚已反转
         }
-    }else if(_isset(pinA) && _isset(pinB) && _isset(pinC)){
-        // if all three currents are measured and none of them is significantly higher
-        // we have a problem with the current sense
+    } else if (_isset(pinA) && _isset(pinB) && _isset(pinC)) {
+        // 如果所有三个电流都被测量且没有一个显著更高
+        // 我们有电流传感器的问题
         SIMPLEFOC_DEBUG("CS: Err A - all currents same magnitude!");
         return 0;
-    }else{ //phase A is not measured so put the _NC to the phase A
-        if(_isset(pinA) && !_isset(pinB)){
+    } else { // 相A未测量，所以将_NC连接到相A
+        if (_isset(pinA) && !_isset(pinB)) {
             SIMPLEFOC_DEBUG("CS: Switch A-(B)NC");
             _swap(pinA, pinB);
             _swap(offset_ia, offset_ib);
             _swap(gain_a, gain_b);
             _swap(c_a.b, c_a.b);
-            phases_switched = true; // signal that pins have been switched
-        }else if(_isset(pinA) && !_isset(pinC)){
+            phases_switched = true; // 标记引脚已交换
+        } else if (_isset(pinA) && !_isset(pinC)) {
             SIMPLEFOC_DEBUG("CS: Switch A-(C)NC");
             _swap(pinA, pinC);
             _swap(offset_ia, offset_ic);
             _swap(gain_a, gain_c);
             _swap(c_a.b, c_a.c);
-            phases_switched = true; // signal that pins have been switched
+            phases_switched = true; // 标记引脚已交换
         }
     }
-    // at this point the current sensing on phase A can be either:
-    // - aligned with the driver phase A
-    // - or the phase A is not measured and the _NC is connected to the phase A
+    // 此时，相A的电流感应可以是：
+    // - 与驱动程序相A对齐
+    // - 或者相A未测量而_NC连接到相A
     //
-    // In either case A is done, now we have to check the phase B and C 
+    // 在任何情况下，A都已完成，现在我们必须检查相B和C 
 
-    
-    // set phase B active and phases A and C down
-    // 300 ms of ramping
-    for(int i=0; i < 100; i++){
-        bldc_driver->setPwm(zero, voltage/100.0*((float)i)+zero, zero);
+    // 设置相B为活动，相A和C为关闭
+    // 300毫秒的升压
+    for (int i = 0; i < 100; i++) {
+        bldc_driver->setPwm(zero, voltage / 100.0 * ((float)i) + zero, zero);
         _delay(3);
     }
     _delay(500);
     PhaseCurrent_s c_b = readAverageCurrents();
     bldc_driver->setPwm(zero, zero, zero);
 
-    // check the phase B
-    // find the highest magnitude in c_b
-    // and make sure it's around 2 (1.5 at least) times higher than the other two
+    // 检查相B
+    // 找到c_b中的最大幅度
+    // 并确保它比其他两个大约高2倍（至少1.5倍）
     float cb[3] = {fabs(c_b.a), fabs(c_b.b), fabs(c_b.c)};
-    max_i = -1; // max index
-    max_c = 0; // max current
-    max_c_ratio = 0; // max current ratio
-    for(int i = 0; i < 3; i++){
-        if(!cb[i]) continue; // current not measured
-        if(cb[i] > max_c){
+    max_i = -1; // 最大索引
+    max_c = 0; // 最大电流
+    max_c_ratio = 0; // 最大电流比
+    for (int i = 0; i < 3; i++) {
+        if (!cb[i]) continue; // 电流未测量
+        if (cb[i] > max_c) {
             max_c = cb[i];
             max_i = i;
-            for(int j = 0; j < 3; j++){
-                if(i == j) continue;
-                if(!cb[j]) continue; // current not measured
+            for (int j = 0; j < 3; j++) {
+                if (i == j) continue;
+                if (!cb[j]) continue; // 电流未测量
                 float ratio = max_c / cb[j];
-                if(ratio > max_c_ratio) max_c_ratio = ratio;
+                if (ratio > max_c_ratio) max_c_ratio = ratio;
             }
         }
     }
-    if(max_c_ratio >= 1.5f){
-        switch (max_i){
-            case 0: // phase A is the max current
-                // this is an error as phase A is already aligned
+    if (max_c_ratio >= 1.5f) {
+        switch (max_i) {
+            case 0: // 相A是最大电流
+                // 这是一个错误，因为相A已经对齐
                 SIMPLEFOC_DEBUG("CS: Err align B");
                 return 0;
-            case 2: // phase C is the max current
+            case 2: // 相C是最大电流
                 SIMPLEFOC_DEBUG("CS: Switch B-C");
                 _swap(pinB, pinC);
                 _swap(offset_ib, offset_ic);
                 _swap(gain_b, gain_c);
                 _swap(c_b.b, c_b.c);
-                phases_switched = true; // signal that pins have been switched
+                phases_switched = true; // 标记引脚已交换
                 break;
         }
-        // check if the current is negative and invert the gain if so
-        if( _sign(c_b.b) < 0 ){
+        // 检查电流是否为负，如果是，则反转增益
+        if (_sign(c_b.b) < 0) {
             SIMPLEFOC_DEBUG("CS: Inv B");
             gain_b *= -1;
-            phases_inverted = true; // signal that pins have been inverted
+            phases_inverted = true; // 标记引脚已反转
         }
-    }else if(_isset(pinB) && _isset(pinC)){
-        // if all three currents are measured and none of them is significantly higher
-        // we have a problem with the current sense
+    } else if (_isset(pinB) && _isset(pinC)) {
+        // 如果所有三个电流都被测量且没有一个显著更高
+        // 我们有电流传感器的问题
         SIMPLEFOC_DEBUG("CS: Err B - all currents same magnitude!");
         return 0;
-    }else{ //phase B is not measured so put the _NC to the phase B
-        if(_isset(pinB) && !_isset(pinC)){
+    } else { // 相B未测量，所以将_NC连接到相B
+        if (_isset(pinB) && !_isset(pinC)) {
             SIMPLEFOC_DEBUG("CS: Switch B-(C)NC");
             _swap(pinB, pinC);
             _swap(offset_ib, offset_ic);
             _swap(gain_b, gain_c);
             _swap(c_b.b, c_b.c);
-            phases_switched = true; // signal that pins have been switched
+            phases_switched = true; // 标记引脚已交换
         }
     }
-    // at this point the current sensing on phase A and B can be either:
-    // - aligned with the driver phase A and B
-    // - or the phase A and B are not measured and the _NC is connected to the phase A and B
+    // 此时，相A和B的电流感应可以是：
+    // - 与驱动程序相A和B对齐
+    // - 或者相A和B未测量而_NC连接到相A和B
     //
-    // In either case A and B is done, now we have to check the phase C
-    // phase C is also aligned if it is measured (not _NC)
-    // we have to check if the current is negative and invert the gain if so
-    if(_isset(pinC)){
-        if( _sign(c_b.c) > 0 ){ // the expected current is -I/2 (if the phase A and B are aligned and C has correct polarity)
+    // 在任何情况下，A和B都已完成，现在我们必须检查相C
+    // 如果相C被测量（不是_NC），它也已对齐
+    // 我们必须检查电流是否为负，如果是，则反转增益
+    if (_isset(pinC)) {
+        if (_sign(c_b.c) > 0) { // 预期电流为-I/2（如果相A和B已对齐且C具有正确极性）
             SIMPLEFOC_DEBUG("CS: Inv C");
             gain_c *= -1;
-            phases_inverted = true; // signal that pins have been inverted
+            phases_inverted = true; // 标记引脚已反转
         }
     }
 
-    // construct the return flag
-    // if the phases have been switched return 2
-    // if the gains have been inverted return 3
-    // if both return 4
+    // 构建返回标志
+    // 如果相位已交换返回2
+    // 如果增益已反转返回3
+    // 如果两者都返回4
     uint8_t exit_flag = 1;
-    if(phases_switched) exit_flag += 1;
-    if(phases_inverted) exit_flag += 2;
+    if (phases_switched) exit_flag += 1;
+    if (phases_inverted) exit_flag += 2;
     return exit_flag;
 }
 
-
-// Function aligning the current sense with motor driver
-// if all pins are connected well none of this is really necessary! - can be avoided
-// returns flag
-// 0 - fail
-// 1 - success and nothing changed
-// 2 - success but pins reconfigured
-// 3 - success but gains inverted
-// 4 - success but pins reconfigured and gains inverted
-int CurrentSense::alignStepperDriver(float voltage, StepperDriver* stepper_driver, bool modulation_centered){
+// 函数对齐电流传感器与电机驱动程序
+// 如果所有引脚连接良好，实际上没有必要执行这些操作！- 可以避免
+// 返回标志
+// 0 - 失败
+// 1 - 成功且没有更改
+// 2 - 成功但引脚重新配置
+// 3 - 成功但增益反转
+// 4 - 成功但引脚重新配置且增益反转
+int CurrentSense::alignStepperDriver(float voltage, StepperDriver* stepper_driver, bool modulation_centered) {
     
     _UNUSED(modulation_centered);
 
     bool phases_switched = 0;
     bool phases_inverted = 0;
 
-    if(!_isset(pinA) || !_isset(pinB)){
+    if (!_isset(pinA) || !_isset(pinB)) {
         SIMPLEFOC_DEBUG("CS: Pins A & B not specified!");
         return 0;
     }
 
-    // set phase A active and phases B down
-    // ramp 300ms
-    for(int i=0; i < 100; i++){
-        stepper_driver->setPwm(voltage/100.0*((float)i), 0);
+    // 设置相A为活动，相B为关闭
+    // 升压300毫秒
+    for (int i = 0; i < 100; i++) {
+        stepper_driver->setPwm(voltage / 100.0 * ((float)i), 0);
         _delay(3);
     }
     _delay(500);
     PhaseCurrent_s c = readAverageCurrents();
-    // disable the phases
+    // 禁用相
     stepper_driver->setPwm(0, 0);        
-    if (fabs(c.a) < 0.1f && fabs(c.b) < 0.1f ){
+    if (fabs(c.a) < 0.1f && fabs(c.b) < 0.1f) {
         SIMPLEFOC_DEBUG("CS: Err too low current!");
-        return 0; // measurement current too low
+        return 0; // 测量电流过低
     }
-    // align phase A
-    // 1) only one phase can be measured so we first measure which ADC pin corresponds 
-    // to the phase A by comparing the magnitude
-    if (fabs(c.a) < fabs(c.b)){
+    // 对齐相A
+    // 1) 只能测量一个相，因此我们首先通过比较幅度来测量哪个ADC引脚对应于相A
+    if (fabs(c.a) < fabs(c.b)) {
         SIMPLEFOC_DEBUG("CS: Switch A-B");
-        // switch phase A and B
+        // 交换相A和相B
         _swap(pinA, pinB);
         _swap(offset_ia, offset_ib);
         _swap(gain_a, gain_b);
-        phases_switched = true; // signal that pins have been switched
+        phases_switched = true; // 标记引脚已交换
     }
-    // 2) check if measured current a is positive and invert if not
-    if (c.a < 0){
+    // 2) 检查测量的电流a是否为正，如果不是则反转
+    if (c.a < 0) {
         SIMPLEFOC_DEBUG("CS: Inv A");
         gain_a *= -1;
-        phases_inverted = true; // signal that pins have been inverted
+        phases_inverted = true; // 标记引脚已反转
     }
 
-    // at this point the driver's phase A is aligned with the ADC pinA
-    // and the pin B should be the phase B
+    // 此时，驱动程序的相A已与ADC引脚A对齐
+    // 引脚B应为相B
 
-    // set phase B active and phases A down
-    // ramp 300ms
-    for(int i=0; i < 100; i++){
-        stepper_driver->setPwm(0, voltage/100.0*((float)i));
+    // 设置相B为活动，相A为关闭
+    // 升压300毫秒
+    for (int i = 0; i < 100; i++) {
+        stepper_driver->setPwm(0, voltage / 100.0 * ((float)i));
         _delay(3);
     }
     _delay(500);
     c = readAverageCurrents();
     stepper_driver->setPwm(0, 0);
 
-    // phase B should be aligned
-    // 1) we just need to verify that it has been measured
-    if (fabs(c.b) < 0.1f ){
+    // 相B应已对齐
+    // 1) 我们只需验证它是否已被测量
+    if (fabs(c.b) < 0.1f) {
         SIMPLEFOC_DEBUG("CS: Err too low current on B!");
-        return 0; // measurement current too low
+        return 0; // 测量电流过低
     }
-    // 2) check if measured current a is positive and invert if not
-    if (c.b < 0){
+    // 2) 检查测量的电流b是否为正，如果不是则反转
+    if (c.b < 0) {
         SIMPLEFOC_DEBUG("CS: Inv B");
         gain_b *= -1;
-        phases_inverted = true; // signal that pins have been inverted
+        phases_inverted = true; // 标记引脚已反转
     }
 
-    // construct the return flag
-    // if success and nothing changed return 1 
-    // if the phases have been switched return 2
-    // if the gains have been inverted return 3
-    // if both return 4
+    // 构建返回标志
+    // 如果成功且没有更改返回1 
+    // 如果相位已交换返回2
+    // 如果增益已反转返回3
+    // 如果两者都返回4
     uint8_t exit_flag = 1;
-    if(phases_switched) exit_flag += 1;
-    if(phases_inverted) exit_flag += 2;
+    if (phases_switched) exit_flag += 1;
+    if (phases_inverted) exit_flag += 2;
     return exit_flag;
 }
-
-
