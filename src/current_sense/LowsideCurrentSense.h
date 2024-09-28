@@ -13,39 +13,39 @@
 #include "hardware_api.h"
 
 
-class LowsideCurrentSense: public CurrentSense{
+class LowsideCurrentSense: public CurrentSense {
   public:
     /**
-      LowsideCurrentSense class constructor
-      @param shunt_resistor shunt resistor value
-      @param gain current-sense op-amp gain
-      @param phA A phase adc pin
-      @param phB B phase adc pin
-      @param phC C phase adc pin (optional)
+      LowsideCurrentSense 类构造函数
+      @param shunt_resistor 分流电阻值
+      @param gain 电流感应运算放大器增益
+      @param phA A 相 ADC 引脚
+      @param phB B 相 ADC 引脚
+      @param phC C 相 ADC 引脚（可选）
     */
     LowsideCurrentSense(float shunt_resistor, float gain, int pinA, int pinB, int pinC = _NC);
     /**
-      LowsideCurrentSense class constructor
-      @param mVpA mV per Amp ratio
-      @param phA A phase adc pin
-      @param phB B phase adc pin
-      @param phC C phase adc pin (optional)
+      LowsideCurrentSense 类构造函数
+      @param mVpA 毫伏每安培比率
+      @param phA A 相 ADC 引脚
+      @param phB B 相 ADC 引脚
+      @param phC C 相 ADC 引脚（可选）
     */
     LowsideCurrentSense(float mVpA, int pinA, int pinB, int pinC = _NC);
 
-    // CurrentSense interface implementing functions
+    // 实现 CurrentSense 接口的函数
     int init() override;
     PhaseCurrent_s getPhaseCurrents() override;
 
   private:
 
-    // gain variables
-    float shunt_resistor; //!< Shunt resistor value
-    float amp_gain; //!< amp gain value
-    float volts_to_amps_ratio; //!< Volts to amps ratio
+    // 增益变量
+    float shunt_resistor; //!< 分流电阻值
+    float amp_gain; //!< 安培增益值
+    float volts_to_amps_ratio; //!< 伏特到安培的比率
 
     /**
-     *  Function finding zero offsets of the ADC
+     *  计算 ADC 的零偏移量
      */
     void calibrateOffsets();
 

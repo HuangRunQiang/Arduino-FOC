@@ -4,64 +4,64 @@
 #include "../common/foc_utils.h"
 #include "../common/time_utils.h"
 
-// flag returned if current sense init fails
+// 如果电流传感器初始化失败，返回的标志
 #define SIMPLEFOC_CURRENT_SENSE_INIT_FAILED ((void*)-1)
 
-// generic implementation of the hardware specific structure
-// containing all the necessary current sense parameters
-// will be returned as a void pointer from the _configureADCx functions
-// will be provided to the _readADCVoltageX() as a void pointer
+// 硬件特定结构的通用实现
+// 包含所有必要的电流传感参数
+// 将作为 void 指针从 _configureADCx 函数返回
+// 将作为 void 指针提供给 _readADCVoltageX() 
 typedef struct GenericCurrentSenseParams {
-  int pins[3];
-  float adc_voltage_conv;
+  int pins[3]; // 引脚数组
+  float adc_voltage_conv; // ADC 电压转换因子
 } GenericCurrentSenseParams;
 
 
 /**
- *  function reading an ADC value and returning the read voltage
+ *  读取 ADC 值并返回读取的电压
  *
- * @param pinA - the arduino pin to be read (it has to be ADC pin)
- * @param cs_params -current sense parameter structure - hardware specific
+ * @param pinA - 要读取的 Arduino 引脚（必须是 ADC 引脚）
+ * @param cs_params - 电流传感参数结构 - 硬件特定
  */
 float _readADCVoltageInline(const int pinA, const void* cs_params);
 
 /**
- *  function reading an ADC value and returning the read voltage
+ *  读取 ADC 值并返回读取的电压
  *
- * @param driver_params - driver parameter structure - hardware specific
- * @param pinA - adc pin A
- * @param pinB - adc pin B
- * @param pinC - adc pin C
+ * @param driver_params - 驱动参数结构 - 硬件特定
+ * @param pinA - ADC 引脚 A
+ * @param pinB - ADC 引脚 B
+ * @param pinC - ADC 引脚 C
  */
-void* _configureADCInline(const void *driver_params, const int pinA,const int pinB,const int pinC = NOT_SET);
+void* _configureADCInline(const void *driver_params, const int pinA, const int pinB, const int pinC = NOT_SET);
 
 /**
- *  function reading an ADC value and returning the read voltage
+ *  读取 ADC 值并返回读取的电压
  *
- * @param driver_params - driver parameter structure - hardware specific
- * @param pinA - adc pin A
- * @param pinB - adc pin B
- * @param pinC - adc pin C
+ * @param driver_params - 驱动参数结构 - 硬件特定
+ * @param pinA - ADC 引脚 A
+ * @param pinB - ADC 引脚 B
+ * @param pinC - ADC 引脚 C
  */
-void* _configureADCLowSide(const void *driver_params, const int pinA,const int pinB,const int pinC = NOT_SET);
+void* _configureADCLowSide(const void *driver_params, const int pinA, const int pinB, const int pinC = NOT_SET);
 
 void _startADC3PinConversionLowSide();
 
 /**
- *  function reading an ADC value and returning the read voltage
+ *  读取 ADC 值并返回读取的电压
  *
- * @param pinA - the arduino pin to be read (it has to be ADC pin)
- * @param cs_params -current sense parameter structure - hardware specific
+ * @param pinA - 要读取的 Arduino 引脚（必须是 ADC 引脚）
+ * @param cs_params - 电流传感参数结构 - 硬件特定
  */
 float _readADCVoltageLowSide(const int pinA, const void* cs_params);
 
 /**
- *  function syncing the Driver with the ADC  for the LowSide Sensing
- * @param driver_params - driver parameter structure - hardware specific
- * @param cs_params - current sense parameter structure - hardware specific
+ *  将驱动程序与 ADC 同步以进行低侧检测
+ * @param driver_params - 驱动参数结构 - 硬件特定
+ * @param cs_params - 电流传感参数结构 - 硬件特定
  * 
- * @return void* - returns the pointer to the current sense parameter structure (unchanged)
- *        - returns SIMPLEFOC_CURRENT_SENSE_INIT_FAILED if the init fails
+ * @return void* - 返回指向电流传感参数结构的指针（未更改）
+ *        - 如果初始化失败，则返回 SIMPLEFOC_CURRENT_SENSE_INIT_FAILED
  */
 void* _driverSyncLowSide(void* driver_params, void* cs_params);
 

@@ -1,147 +1,57 @@
 完整汉化：
 
 
+#ifndef LOWSIDE_CS_LIB_H
+#define LOWSIDE_CS_LIB_H
 
-// Function setting the duty cycle to the pwm pin (ex. analogWrite())
-// - BLDC driver - 6PWM setting
-// - hardware specific
-void _writeDutyCycle6PWM(float dc_a, float dc_b, float dc_c, PhaseState* phase_state, void* params){
-  switch(((STM32DriverParams*)params)->interface_type){
-    case _HARDWARE_6PWM:
-      // phase a
-      _setSinglePhaseState(phase_state[0], ((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], ((STM32DriverParams*)params)->channels[1]);
-      if(phase_state[0] == PhaseState::PHASE_OFF) dc_a = 0.0f;
-      _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _PWM_RANGE*dc_a, _PWM_RESOLUTION);
-      // phase b
-      _setSinglePhaseState(phase_state[1], ((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], ((STM32DriverParams*)params)->channels[3]);
-      if(phase_state[1] == PhaseState::PHASE_OFF) dc_b = 0.0f;
-      _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _PWM_RANGE*dc_b, _PWM_RESOLUTION);
-      // phase c
-      _setSinglePhaseState(phase_state[2], ((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], ((STM32DriverParams*)params)->channels[5]);
-      if(phase_state[2] == PhaseState::PHASE_OFF) dc_c = 0.0f;
-      _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], _PWM_RANGE*dc_c, _PWM_RESOLUTION);
-      break;
-    case _SOFTWARE_6PWM:
-      float dead_zone = ((STM32DriverParams*)params)->dead_zone  / 2.0f;
-      if (phase_state[0] == PhaseState::PHASE_ON || phase_state[0] == PhaseState::PHASE_HI)
-        _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], _constrain(dc_a - dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
-      else
-        _setPwm(((STM32DriverParams*)params)->timers[0], ((STM32DriverParams*)params)->channels[0], 0.0f, _PWM_RESOLUTION);
-      if (phase_state[0] == PhaseState::PHASE_ON || phase_state[0] == PhaseState::PHASE_LO)
-        _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], _constrain(dc_a + dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
-      else
-        _setPwm(((STM32DriverParams*)params)->timers[1], ((STM32DriverParams*)params)->channels[1], 0.0f, _PWM_RESOLUTION);
-
-      if (phase_state[1] == PhaseState::PHASE_ON || phase_state[1] == PhaseState::PHASE_HI)
-        _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], _constrain(dc_b - dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
-      else
-        _setPwm(((STM32DriverParams*)params)->timers[2], ((STM32DriverParams*)params)->channels[2], 0.0f, _PWM_RESOLUTION);
-      if (phase_state[1] == PhaseState::PHASE_ON || phase_state[1] == PhaseState::PHASE_LO)
-        _setPwm(((STM32DriverParams*)params)->timers[3], ((STM32DriverParams*)params)->channels[3], _constrain(dc_b + dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
-      else
-        _setPwm(((STM32DriverParams*)params)->timers[3], ((STM32DriverParams*)params)->channels[3], 0.0f, _PWM_RESOLUTION);
-
-      if (phase_state[2] == PhaseState::PHASE_ON || phase_state[2] == PhaseState::PHASE_HI)
-        _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], _constrain(dc_c - dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
-      else
-        _setPwm(((STM32DriverParams*)params)->timers[4], ((STM32DriverParams*)params)->channels[4], 0.0f, _PWM_RESOLUTION);
-      if (phase_state[2] == PhaseState::PHASE_ON || phase_state[2] == PhaseState::PHASE_LO)
-        _setPwm(((STM32DriverParams*)params)->timers[5], ((STM32DriverParams*)params)->channels[5], _constrain(dc_c + dead_zone, 0.0f, 1.0f)*_PWM_RANGE, _PWM_RESOLUTION);
-      else
-        _setPwm(((STM32DriverParams*)params)->timers[5], ((STM32DriverParams*)params)->channels[5], 0.0f, _PWM_RESOLUTION);
-      break;
-  }
-  _UNUSED(phase_state);
-}
+#include "Arduino.h"
+#include "../common/foc_utils.h"
+#include "../common/time_utils.h"
+#include "../common/defaults.h"
+#include "../common/base_classes/CurrentSense.h"
+#include "../common/base_classes/FOCMotor.h"
+#include "../common/base_classes/StepperDriver.h"
+#include "../common/base_classes/BLDCDriver.h"
+#include "../common/lowpass_filter.h"
+#include "hardware_api.h"
 
 
+class LowsideCurrentSense: public CurrentSense{
+  public:
+    /**
+      LowsideCurrentSense class constructor
+      @param shunt_resistor shunt resistor value
+      @param gain current-sense op-amp gain
+      @param phA A phase adc pin
+      @param phB B phase adc pin
+      @param phC C phase adc pin (optional)
+    */
+    LowsideCurrentSense(float shunt_resistor, float gain, int pinA, int pinB, int pinC = _NC);
+    /**
+      LowsideCurrentSense class constructor
+      @param mVpA mV per Amp ratio
+      @param phA A phase adc pin
+      @param phB B phase adc pin
+      @param phC C phase adc pin (optional)
+    */
+    LowsideCurrentSense(float mVpA, int pinA, int pinB, int pinC = _NC);
 
-#ifdef SIMPLEFOC_STM32_DEBUG
+    // CurrentSense interface implementing functions
+    int init() override;
+    PhaseCurrent_s getPhaseCurrents() override;
 
-int getTimerNumber(int timerIndex) {
-  #if defined(TIM1_BASE)
-    if (timerIndex==TIMER1_INDEX) return 1;
-  #endif
-  #if defined(TIM2_BASE)
-    if (timerIndex==TIMER2_INDEX) return 2;
-  #endif
-  #if defined(TIM3_BASE)
-    if (timerIndex==TIMER3_INDEX) return 3;
-  #endif
-  #if defined(TIM4_BASE)
-    if (timerIndex==TIMER4_INDEX) return 4;
-  #endif
-  #if defined(TIM5_BASE)
-    if (timerIndex==TIMER5_INDEX) return 5;
-  #endif
-  #if defined(TIM6_BASE)
-    if (timerIndex==TIMER6_INDEX) return 6;
-  #endif
-  #if defined(TIM7_BASE)
-    if (timerIndex==TIMER7_INDEX) return 7;
-  #endif
-  #if defined(TIM8_BASE)
-    if (timerIndex==TIMER8_INDEX) return 8;
-  #endif
-  #if defined(TIM9_BASE)
-    if (timerIndex==TIMER9_INDEX) return 9;
-  #endif
-  #if defined(TIM10_BASE)
-    if (timerIndex==TIMER10_INDEX) return 10;
-  #endif
-  #if defined(TIM11_BASE)
-    if (timerIndex==TIMER11_INDEX) return 11;
-  #endif
-  #if defined(TIM12_BASE)
-    if (timerIndex==TIMER12_INDEX) return 12;
-  #endif
-  #if defined(TIM13_BASE)
-    if (timerIndex==TIMER13_INDEX) return 13;
-  #endif
-  #if defined(TIM14_BASE)
-    if (timerIndex==TIMER14_INDEX) return 14;
-  #endif
-  #if defined(TIM15_BASE)
-    if (timerIndex==TIMER15_INDEX) return 15;
-  #endif
-  #if defined(TIM16_BASE)
-    if (timerIndex==TIMER16_INDEX) return 16;
-  #endif
-  #if defined(TIM17_BASE)
-    if (timerIndex==TIMER17_INDEX) return 17;
-  #endif
-  #if defined(TIM18_BASE)
-    if (timerIndex==TIMER18_INDEX) return 18;
-  #endif
-  #if defined(TIM19_BASE)
-    if (timerIndex==TIMER19_INDEX) return 19;
-  #endif
-  #if defined(TIM20_BASE)
-    if (timerIndex==TIMER20_INDEX) return 20;
-  #endif
-  #if defined(TIM21_BASE)
-    if (timerIndex==TIMER21_INDEX) return 21;
-  #endif
-  #if defined(TIM22_BASE)
-    if (timerIndex==TIMER22_INDEX) return 22;
-  #endif
-  return -1;
-}
+  private:
 
+    // gain variables
+    float shunt_resistor; //!< Shunt resistor value
+    float amp_gain; //!< amp gain value
+    float volts_to_amps_ratio; //!< Volts to amps ratio
 
-void printTimerCombination(int numPins, PinMap* timers[], int score) {
-  for (int i=0; i<numPins; i++) {
-    if (timers[i] == NP)
-      SimpleFOCDebug::print("NP");
-    else {
-      SimpleFOCDebug::print("TIM");
-      SimpleFOCDebug::print(getTimerNumber(get_timer_index((TIM_TypeDef*)timers[i]->peripheral)));
-      SimpleFOCDebug::print("-CH");
-      SimpleFOCDebug::print(STM_PIN_CHANNEL(timers[i]->function));
-      if (STM_PIN_INVERTED(timers[i]->function))
-        SimpleFOCDebug::print("N");
-    }
-    SimpleFOCDebug::print(" ");
-  }
-  SimpleFOCDebug::println("score: ", score);
-}
+    /**
+     *  Function finding zero offsets of the ADC
+     */
+    void calibrateOffsets();
+
+};
+
+#endif
