@@ -3,44 +3,44 @@
 
 #include "Arduino.h"
 
-
+// 相位状态枚举
 enum PhaseState : uint8_t {
-  PHASE_OFF = 0, // both sides of the phase are off
-  PHASE_ON = 1,  // both sides of the phase are driven with PWM, dead time is applied in 6-PWM mode
-  PHASE_HI = 2,  // only the high side of the phase is driven with PWM (6-PWM mode only)
-  PHASE_LO = 3,  // only the low side of the phase is driven with PWM (6-PWM mode only)
+  PHASE_OFF = 0, // 相位两侧均关闭
+  PHASE_ON = 1,  // 相位两侧均通过PWM驱动，6-PWM模式下应用死区时间
+  PHASE_HI = 2,  // 仅高侧通过PWM驱动（仅限6-PWM模式）
+  PHASE_LO = 3,  // 仅低侧通过PWM驱动（仅限6-PWM模式）
 };
 
-
+// 驱动器类型枚举
 enum DriverType{
-    Unknown=0,
-    BLDC=1,
-    Stepper=2
+    Unknown = 0,  // 未知类型
+    BLDC = 1,     // 无刷直流电机
+    Stepper = 2   // 步进电机
 };
 
 /**
- * FOC driver class
+ * FOC驱动器类
  */
 class FOCDriver{
     public:
 
-        /** Initialise hardware */
+        /** 初始化硬件 */
         virtual int init() = 0;
-        /** Enable hardware */
+        /** 启用硬件 */
         virtual void enable() = 0;
-        /** Disable hardware */
+        /** 禁用硬件 */
         virtual void disable() = 0;
 
-        long pwm_frequency; //!< pwm frequency value in hertz
-        float voltage_power_supply; //!< power supply voltage
-        float voltage_limit; //!< limiting voltage set to the motor
+        long pwm_frequency; //!< PWM频率值（单位：赫兹）
+        float voltage_power_supply; //!< 电源电压
+        float voltage_limit; //!< 设置给电机的限制电压
 
-        bool initialized = false; //!< true if driver was successfully initialized
-        void* params = 0; //!< pointer to hardware specific parameters of driver
+        bool initialized = false; //!< 如果驱动器成功初始化则为真
+        void* params = 0; //!< 指向驱动器硬件特定参数的指针
 
-        bool enable_active_high = true; //!< enable pin should be set to high to enable the driver (default is HIGH)
+        bool enable_active_high = true; //!< 启用引脚应设置为高电平以启用驱动器（默认高电平）
 
-        /** get the driver type*/
+        /** 获取驱动器类型 */
         virtual DriverType type() = 0;
 };
 

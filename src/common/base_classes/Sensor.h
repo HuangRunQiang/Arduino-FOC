@@ -4,136 +4,135 @@
 #include <inttypes.h>
 
 /**
- *  Direction structure
+ *  方向结构体
  */
 enum Direction : int8_t {
-    CW      = 1,  // clockwise
-    CCW     = -1, // counter clockwise
-    UNKNOWN = 0   // not yet known or invalid state
+    CW      = 1,  // 顺时针
+    CCW     = -1, // 逆时针
+    UNKNOWN = 0   // 尚未知道或无效状态
 };
 
 
 /**
- *  Pullup configuration structure
+ *  上拉配置结构体
  */
 enum Pullup : uint8_t {
-    USE_INTERN = 0x00, //!< Use internal pullups
-    USE_EXTERN = 0x01  //!< Use external pullups
+    USE_INTERN = 0x00, //!< 使用内部上拉
+    USE_EXTERN = 0x01  //!< 使用外部上拉
 };
 
 /**
- * Sensor abstract class defintion
+ *  传感器抽象类定义
  * 
- * This class is purposefully kept simple, as a base for all kinds of sensors. Currently we have
- * Encoders, Magnetic Encoders and Hall Sensor implementations. This base class extracts the
- * most basic common features so that a FOC driver can obtain the data it needs for operation.
+ *  此类故意保持简单，作为各种传感器的基础。目前我们有
+ *  编码器、磁编码器和霍尔传感器的实现。这个基类提取了
+ *  最基本的共同特性，以便FOC驱动程序可以获取其操作所需的数据。
  * 
- * To implement your own sensors, create a sub-class of this class, and implement the getSensorAngle()
- * method. getSensorAngle() returns a float value, in radians, representing the current shaft angle in the
- * range 0 to 2*PI (one full turn). 
+ *  要实现您自己的传感器，请创建此类的子类，并实现getSensorAngle()
+ *  方法。getSensorAngle()返回一个浮点值，以弧度表示当前轴角，
+ *  范围为0到2*PI（一个完整的旋转）。
  * 
- * To function correctly, the sensor class update() method has to be called sufficiently quickly. Normally,
- * the BLDCMotor's loopFOC() function calls it once per iteration, so you must ensure to call loopFOC() quickly
- * enough, both for correct motor and sensor operation.
+ *  为了正确工作，传感器类的update()方法必须足够快速地被调用。通常，
+ *  BLDCMotor的loopFOC()函数每次迭代调用一次，因此您必须确保快速调用
+ *  loopFOC()，以确保电机和传感器的正确操作。
  * 
- * The Sensor base class provides an implementation of getVelocity(), and takes care of counting full
- * revolutions in a precise way, but if you wish you can additionally override these methods to provide more
- * optimal implementations for your hardware.
+ *  传感器基类提供了getVelocity()的实现，并以精确的方式处理完整
+ *  旋转的计数，但如果您愿意，可以额外重写这些方法，以便为您的硬件
+ *  提供更优的实现。
  * 
  */
 class Sensor{
-	friend class SmoothingSensor;
+    friend class SmoothingSensor;
     public:
         /**
-         * Get mechanical shaft angle in the range 0 to 2PI. This value will be as precise as possible with
-         * the hardware. Base implementation uses the values returned by update() so that 
-         * the same values are returned until update() is called again.
+         * 获取机械轴角，范围为0到2PI。此值将尽可能精确地与
+         * 硬件匹配。基本实现使用update()返回的值，以便
+         * 在再次调用update()之前返回相同的值。
          */
         virtual float getMechanicalAngle();
 
         /**
-         * Get current position (in rad) including full rotations and shaft angle.
-         * Base implementation uses the values returned by update() so that the same
-         * values are returned until update() is called again.
-         * Note that this value has limited precision as the number of rotations increases,
-         * because the limited precision of float can't capture the large angle of the full 
-         * rotations and the small angle of the shaft angle at the same time.
+         * 获取当前位置（以弧度为单位），包括完整旋转和轴角。
+         * 基本实现使用update()返回的值，以便在再次调用
+         * update()之前返回相同的值。
+         * 注意，随着旋转次数的增加，此值的精度有限，
+         * 因为浮点数的有限精度无法同时捕捉完整旋转的大角度
+         * 和轴角的小角度。
          */
         virtual float getAngle();
         
         /** 
-         * On architectures supporting it, this will return a double precision position value,
-         * which should have improved precision for large position values.
-         * Base implementation uses the values returned by update() so that the same
-         * values are returned until update() is called again.
+         * 在支持的架构上，这将返回一个双精度位置值，
+         * 对于大位置值应具有更好的精度。
+         * 基本实现使用update()返回的值，以便在再次调用
+         * update()之前返回相同的值。
          */
         virtual double getPreciseAngle();
 
         /** 
-         * Get current angular velocity (rad/s)
-         * Can be overridden in subclasses. Base implementation uses the values 
-         * returned by update() so that it only makes sense to call this if update()
-         * has been called in the meantime.
+         * 获取当前角速度（弧度/秒）
+         * 可以在子类中重写。基本实现使用update()返回的值，
+         * 因此只有在此期间调用update()时才有意义。
          */
         virtual float getVelocity();
 
         /**
-         * Get the number of full rotations
-         * Base implementation uses the values returned by update() so that the same
-         * values are returned until update() is called again. 
+         * 获取完整旋转的数量
+         * 基本实现使用update()返回的值，以便在再次调用
+         * update()之前返回相同的值。 
          */
         virtual int32_t getFullRotations();
 
         /**
-         * Updates the sensor values by reading the hardware sensor.
-         * Some implementations may work with interrupts, and not need this.
-         * The base implementation calls getSensorAngle(), and updates internal
-         * fields for angle, timestamp and full rotations.
-         * This method must be called frequently enough to guarantee that full
-         * rotations are not "missed" due to infrequent polling.
-         * Override in subclasses if alternative behaviours are required for your
-         * sensor hardware.
+         * 通过读取硬件传感器更新传感器值。
+         * 一些实现可能使用中断，不需要此操作。
+         * 基本实现调用getSensorAngle()，并更新内部
+         * 字段的角度、时间戳和完整旋转。
+         * 此方法必须足够频繁地调用，以确保由于
+         * 轮询不频繁而不会“错过”完整旋转。
+         * 如果您的传感器硬件需要其他行为，请在子类中重写。
          */
         virtual void update();
 
         /** 
-         * returns 0 if it does need search for absolute zero
-         * 0 - magnetic sensor (& encoder with index which is found)
-         * 1 - ecoder with index (with index not found yet)
+         * 如果不需要搜索绝对零点，则返回0
+         * 0 - 磁传感器（和找到的带有索引的编码器）
+         * 1 - 带有索引的编码器（索引尚未找到）
          */
         virtual int needsSearch();
 
         /**
-         * Minimum time between updates to velocity. If time elapsed is lower than this, the velocity is not updated.
+         * 更新速度之间的最小时间。如果经过的时间低于此值，则速度不会更新。
          */
-        float min_elapsed_time = 0.000100; // default is 100 microseconds, or 10kHz
+        float min_elapsed_time = 0.000100; // 默认是100微秒，或10kHz
 
     protected:
         /** 
-         * Get current shaft angle from the sensor hardware, and 
-         * return it as a float in radians, in the range 0 to 2PI.
+         * 从传感器硬件获取当前轴角，并
+         * 以弧度形式返回，范围为0到2PI。
          * 
-         * This method is pure virtual and must be implemented in subclasses.
-         * Calling this method directly does not update the base-class internal fields.
-         * Use update() when calling from outside code.
+         * 此方法是纯虚拟的，必须在子类中实现。
+         * 直接调用此方法不会更新基类的内部字段。
+         * 从外部代码调用时请使用update()。
          */
         virtual float getSensorAngle()=0;
+        
         /**
-         * Call Sensor::init() from your sensor subclass's init method if you want smoother startup
-         * The base class init() method calls getSensorAngle() several times to initialize the internal fields
-         * to current values, ensuring there is no discontinuity ("jump from zero") during the first calls
-         * to sensor.getAngle() and sensor.getVelocity()
+         * 如果您希望启动更平滑，请从传感器子类的init方法中调用Sensor::init()。
+         * 基类的init()方法多次调用getSensorAngle()以初始化内部字段
+         * 为当前值，确保在第一次调用sensor.getAngle()和sensor.getVelocity()
+         * 时没有不连续性（“跳跃到零”）。
          */
         virtual void init();
 
-        // velocity calculation variables
+        // 速度计算变量
         float velocity=0.0f;
-        float angle_prev=0.0f; // result of last call to getSensorAngle(), used for full rotations and velocity
-        long angle_prev_ts=0; // timestamp of last call to getAngle, used for velocity
-        float vel_angle_prev=0.0f; // angle at last call to getVelocity, used for velocity
-        long vel_angle_prev_ts=0; // last velocity calculation timestamp
-        int32_t full_rotations=0; // full rotation tracking
-        int32_t vel_full_rotations=0; // previous full rotation value for velocity calculation
+        float angle_prev=0.0f; // 上次调用getSensorAngle()的结果，用于完整旋转和速度
+        long angle_prev_ts=0; // 上次调用getAngle的时间戳，用于速度
+        float vel_angle_prev=0.0f; // 上次调用getVelocity时的角度，用于速度
+        long vel_angle_prev_ts=0; // 上次速度计算的时间戳
+        int32_t full_rotations=0; // 完整旋转跟踪
+        int32_t vel_full_rotations=0; // 用于速度计算的上次完整旋转值
 };
 
 #endif

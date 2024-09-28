@@ -2,98 +2,99 @@
 #include "../../communication/SimpleFOCDebug.h"
 
 /**
- * Default constructor - setting all variabels to default values
+ * 默认构造函数 - 将所有变量设置为默认值
  */
 FOCMotor::FOCMotor()
 {
-  // maximum angular velocity to be used for positioning 
+  // 用于定位的最大角速度
   velocity_limit = DEF_VEL_LIM;
-  // maximum voltage to be set to the motor
+  // 设置给电机的最大电压
   voltage_limit = DEF_POWER_SUPPLY;
-  // not set on the begining
+  // 最开始未设置
   current_limit = DEF_CURRENT_LIM;
 
-  // index search velocity
+  // 索引搜索速度
   velocity_index_search = DEF_INDEX_SEARCH_TARGET_VELOCITY;
-  // sensor and motor align voltage
+  // 传感器和电机对准电压
   voltage_sensor_align = DEF_VOLTAGE_SENSOR_ALIGN;
 
-  // default modulation is SinePWM
+  // 默认调制方式为SinePWM
   foc_modulation = FOCModulationType::SinePWM;
 
-  // default target value
+  // 默认目标值
   target = 0;
   voltage.d = 0;
   voltage.q = 0;
-  // current target values
+  // 当前目标值
   current_sp = 0;
   current.q = 0;
   current.d = 0;
 
-  // voltage bemf 
+  // 电压反电动势
   voltage_bemf = 0;
 
-  // Initialize phase voltages U alpha and U beta used for inverse Park and Clarke transform
+  // 初始化用于逆Park和Clarke变换的相电压U alpha和U beta
   Ualpha = 0;
   Ubeta = 0;
   
-  //monitor_port 
+  // 监控端口
   monitor_port = nullptr;
-  //sensor 
+  // 传感器
   sensor_offset = 0.0f;
   sensor = nullptr;
-  //current sensor 
+  // 电流传感器
   current_sense = nullptr;
 }
 
 
 /**
-	Sensor linking method
-*/
+ * 传感器链接方法
+ */
 void FOCMotor::linkSensor(Sensor* _sensor) {
   sensor = _sensor;
 }
 
 /**
-	CurrentSense linking method
-*/
+ * 电流传感器链接方法
+ */
 void FOCMotor::linkCurrentSense(CurrentSense* _current_sense) {
   current_sense = _current_sense;
 }
 
-// shaft angle calculation
+// 轴角计算
 float FOCMotor::shaftAngle() {
-  // if no sensor linked return previous value ( for open loop )
+  // 如果没有链接传感器，则返回之前的值（用于开环控制）
   if(!sensor) return shaft_angle;
   return sensor_direction*LPF_angle(sensor->getAngle()) - sensor_offset;
 }
-// shaft velocity calculation
+
+// 轴速度计算
 float FOCMotor::shaftVelocity() {
-  // if no sensor linked return previous value ( for open loop )
+  // 如果没有链接传感器，则返回之前的值（用于开环控制）
   if(!sensor) return shaft_velocity;
   return sensor_direction*LPF_velocity(sensor->getVelocity());
 }
 
-float FOCMotor::electricalAngle(){
-  // if no sensor linked return previous value ( for open loop )
+float FOCMotor::electricalAngle() {
+  // 如果没有链接传感器，则返回之前的值（用于开环控制）
   if(!sensor) return electrical_angle;
   return  _normalizeAngle( (float)(sensor_direction * pole_pairs) * sensor->getMechanicalAngle()  - zero_electric_angle );
 }
 
 /**
- *  Monitoring functions
+ * 监控功能
  */
-// function implementing the monitor_port setter
+// 实现monitor_port设置器的函数
 void FOCMotor::useMonitoring(Print &print){
-  monitor_port = &print; //operate on the address of print
+  monitor_port = &print; // 操作print的地址
   #ifndef SIMPLEFOC_DISABLE_DEBUG
   SimpleFOCDebug::enable(&print);
-  SIMPLEFOC_DEBUG("MOT: Monitor enabled!");
+  SIMPLEFOC_DEBUG("MOT: 监控已启用!");
   #endif
 }
 
-// utility function intended to be used with serial plotter to monitor motor variables
-// significantly slowing the execution down!!!!
+// 旨在与串行绘图仪一起使用的实用函数，以监控电机变量
+// 会显著降低执行速度!!!!
 void FOCMotor::monitor() {
   if( !monitor_downsample || monitor_cnt++ < (monitor_downsample-1) ) return;
   monitor_cnt = 0;
@@ -117,7 +118,7 @@ void FOCMotor::monitor() {
     monitor_port->print(voltage.d,monitor_decimals);
     printed= true;
   }
-  // read currents if possible - even in voltage mode (if current_sense available)
+  // 如果可能，读取电流 - 即使在电压模式下（如果有current_sense可用）
   if(monitor_variables & _MON_CURR_Q || monitor_variables & _MON_CURR_D) {
     DQCurrent_s c = current;
     if( current_sense && torque_controller != TorqueControlType::foc_current ){
@@ -128,13 +129,13 @@ void FOCMotor::monitor() {
     if(monitor_variables & _MON_CURR_Q) {
       if(!printed && monitor_start_char) monitor_port->print(monitor_start_char);
       else if(printed) monitor_port->print(monitor_separator);
-      monitor_port->print(c.q*1000, monitor_decimals); // mAmps
+      monitor_port->print(c.q*1000, monitor_decimals); // 毫安
       printed= true;
     }
     if(monitor_variables & _MON_CURR_D) {
       if(!printed && monitor_start_char) monitor_port->print(monitor_start_char);
       else if(printed) monitor_port->print(monitor_separator);
-      monitor_port->print(c.d*1000, monitor_decimals); // mAmps
+      monitor_port->print(c.d*1000, monitor_decimals); // 毫安
       printed= true;
     }
   }
@@ -155,5 +156,4 @@ void FOCMotor::monitor() {
     if(monitor_end_char) monitor_port->println(monitor_end_char);
     else monitor_port->println("");
   }
-}   
-
+}

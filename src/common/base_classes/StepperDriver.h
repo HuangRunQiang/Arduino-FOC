@@ -4,27 +4,27 @@
 #include "Arduino.h"
 #include "FOCDriver.h"
 
-class StepperDriver: public FOCDriver{
+class StepperDriver: public FOCDriver {
     public:
         
         /** 
-         * Set phase voltages to the hardware 
+         * 设置相电压到硬件 
          * 
-         * @param Ua phase A voltage
-         * @param Ub phase B voltage
+         * @param Ua 相A电压
+         * @param Ub 相B电压
         */
         virtual void setPwm(float Ua, float Ub) = 0;
 
         /**
-         * Set phase state, enable/disable
+         * 设置相状态，启用/禁用
          *
-         * @param sc - phase A state : active / disabled ( high impedance )
-         * @param sb - phase B state : active / disabled ( high impedance )
+         * @param sa - 相A状态 : 激活 / 禁用（高阻抗）
+         * @param sb - 相B状态 : 激活 / 禁用（高阻抗）
         */
         virtual void setPhaseState(PhaseState sa, PhaseState sb) = 0;
         
-        /** driver type getter function */
-        virtual DriverType type() override { return DriverType::Stepper; } ;
+        /** 驱动器类型获取函数 */
+        virtual DriverType type() override { return DriverType::Stepper; };
 };
 
 #endif
