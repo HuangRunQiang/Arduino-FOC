@@ -253,18 +253,27 @@ int BLDCMotor::alignSensor() {
     float end_angle = sensor->getAngle();
     // setPhaseVoltage(0, 0, 0);
     _delay(200);
-    // 确定传感器移动的方向
-    float moved =  fabs(mid_angle - end_angle);
-    if (moved<MIN_ANGLE_DETECT_MOVEMENT) { // 检测移动的最小角度
-      SIMPLEFOC_DEBUG("MOT: 未能注意到移动");
-      return 0; // 校准失败
-    } else if (mid_angle < end_angle) {
-      SIMPLEFOC_DEBUG("MOT: sensor_direction==CCW");
-      sensor_direction = Direction::CCW;
-    } else{
-      SIMPLEFOC_DEBUG("MOT: sensor_direction==CW");
-      sensor_direction = Direction::CW;
-    }
+// 确定传感器移动的方向
+// 计算中间角度(mid_angle)与结束角度(end_angle)之间的绝对差值
+float moved = fabs(mid_angle - end_angle);
+
+// 检测移动的最小角度
+if (moved < MIN_ANGLE_DETECT_MOVEMENT) { 
+    // 如果移动的角度小于设定的最小检测角度
+    SIMPLEFOC_DEBUG("MOT: 未能注意到移动"); // 输出调试信息，表示未能检测到移动
+    return 0; // 返回0，表示校准失败
+} 
+else if (mid_angle < end_angle) {
+    // 如果中间角度小于结束角度，表示传感器是逆时针移动
+    SIMPLEFOC_DEBUG("MOT: sensor_direction==CCW"); // 输出调试信息，表明传感器方向为逆时针
+    sensor_direction = Direction::CCW; // 设置传感器方向为逆时针
+} 
+else {
+    // 如果中间角度大于结束角度，表示传感器是顺时针移动
+    SIMPLEFOC_DEBUG("MOT: sensor_direction==CW"); // 输出调试信息，表明传感器方向为顺时针
+    sensor_direction = Direction::CW; // 设置传感器方向为顺时针
+}
+
     // 检查极对数
     pp_check_result = !(fabs(moved*pole_pairs - _2PI) > 0.5f); // 0.5f 是一个任意值，可以更低或更高！
     if( pp_check_result==false ) {
